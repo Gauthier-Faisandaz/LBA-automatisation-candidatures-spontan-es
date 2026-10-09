@@ -1,0 +1,146 @@
+{
+  "name": "LBA – Collecte entreprises",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 0],
+      "id": "164af401-ad49-4ab6-8383-66fe7a700ddb",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_CODES_ROME", "cachedResultName": "JobDataStudy code rome" },
+        "returnAll": true
+      },
+      "id": "dd618a48-63c8-43ab-b13f-f99c15bb1250",
+      "name": "Codes ROME (JobDataStudy)",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [224, 0]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "723ebe1f-84de-4255-ac00-819dcd394156", "name": "latitude", "type": "string", "value": "50.54" },
+            { "id": "1007bf8b-4bca-4b89-b87e-2f36579a3be1", "name": "longitude", "type": "string", "value": "2.86" },
+            { "id": "c5dc22a3-41b2-4b9a-a6ea-9da2ac252137", "name": "radius", "type": "string", "value": "50" }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [448, 0],
+      "id": "c7a6baf2-f619-4bdf-a767-d136732d730a",
+      "name": "Paramètres"
+    },
+    {
+      "parameters": {
+        "url": "https://api.apprentissage.beta.gouv.fr/api/job/v1/search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "latitude", "value": "={{ $json.latitude }}" },
+            { "name": "longitude", "value": "={{ $json.longitude }}" },
+            { "name": "radius", "value": "={{ $json.radius }}" },
+            { "name": "romes", "value": "={{ $json.codeRome }}" }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [704, 0],
+      "id": "791bd3cc-14b0-4d29-81af-d8de0626340c",
+      "name": "Collecte \"La Bonne Alternance\"",
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_ME", "name": "La Bonne Alternance api key" } }
+    },
+    {
+      "parameters": { "fieldToSplitOut": "recruiters", "options": {} },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [928, 0],
+      "id": "6376cfa0-864d-4e56-b8cb-5864698e790b",
+      "name": "Split Out1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "a1", "name": "siret", "type": "string", "value": "={{ $json.workplace.siret }}" },
+            { "id": "a2", "name": "nom", "type": "string", "value": "={{ $json.workplace.name }}" },
+            { "id": "a3", "name": "type_opportunite", "type": "string", "value": "candidature_spontanee" },
+            { "id": "a4", "name": "code_rome", "type": "string", "value": "={{ $('Paramètres').item.json.codeRome }}" },
+            { "id": "a5", "name": "adresse", "type": "string", "value": "={{ $json.workplace.location.address }}" },
+            { "id": "a6", "name": "taille", "type": "string", "value": "={{ $json.workplace.size }}" },
+            { "id": "a7", "name": "secteur_naf", "type": "string", "value": "={{ $json.workplace.domain.naf?.label }}" },
+            { "id": "a8", "name": "site_web", "type": "string", "value": "={{ $json.workplace.website }}" },
+            { "id": "a9", "name": "telephone", "type": "string", "value": "={{ $json.apply.phone }}" },
+            { "id": "a10", "name": "candidature_simplifiee", "type": "boolean", "value": "={{ !!$json.apply.recipient_id }}" },
+            { "id": "a11", "name": "recipient_id", "type": "string", "value": "={{ $json.apply.recipient_id }}" },
+            { "id": "a12", "name": "lien_lba", "type": "string", "value": "={{ $json.apply.url }}" },
+            { "id": "a13", "name": "statut", "type": "string", "value": "a_traiter" },
+            { "id": "a14", "name": "date_collecte", "type": "string", "value": "={{ $now.toISO() }}" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "11d37df7-8a18-414e-b6e5-5cff1a60fe9b",
+      "name": "Mapping recruteur",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1152, 0]
+    },
+    {
+      "parameters": { "compare": "selectedFields", "fieldsToCompare": "siret", "options": {} },
+      "id": "093c74f6-ba4b-4992-88cf-59d7844d3ccc",
+      "name": "Dédoublonnage SIRET",
+      "type": "n8n-nodes-base.removeDuplicates",
+      "typeVersion": 2,
+      "position": [1376, 0]
+    },
+    {
+      "parameters": {
+        "operation": "rowNotExists",
+        "dataTableId": { "__rl": true, "cachedResultName": "lba_entreprises", "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [ { "keyName": "siret", "keyValue": "={{ $json.siret }}" } ] }
+      },
+      "id": "7169572c-03f1-4c8b-b603-c1130e21c75c",
+      "name": "Nouveau dans la table ?",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1600, 0]
+    },
+    {
+      "parameters": {
+        "dataTableId": { "__rl": true, "cachedResultName": "lba_entreprises", "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES" },
+        "columns": { "mappingMode": "autoMapInputData", "value": null },
+        "options": {}
+      },
+      "id": "8de9e44e-01ef-4e7b-9e1b-9a54bc7b8854",
+      "name": "Insertion lba_entreprises",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1824, 0]
+    }
+  ],
+  "connections": {
+    "When clicking ‘Execute workflow’": { "main": [[{ "node": "Codes ROME (JobDataStudy)", "type": "main", "index": 0 }]] },
+    "Codes ROME (JobDataStudy)": { "main": [[{ "node": "Paramètres", "type": "main", "index": 0 }]] },
+    "Paramètres": { "main": [[{ "node": "Collecte \"La Bonne Alternance\"", "type": "main", "index": 0 }]] },
+    "Collecte \"La Bonne Alternance\"": { "main": [[{ "node": "Split Out1", "type": "main", "index": 0 }]] },
+    "Split Out1": { "main": [[{ "node": "Mapping recruteur", "type": "main", "index": 0 }]] },
+    "Mapping recruteur": { "main": [[{ "node": "Dédoublonnage SIRET", "type": "main", "index": 0 }]] },
+    "Dédoublonnage SIRET": { "main": [[{ "node": "Nouveau dans la table ?", "type": "main", "index": 0 }]] },
+    "Nouveau dans la table ?": { "main": [[{ "node": "Insertion lba_entreprises", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "Europe/Paris" }
+}

@@ -1,0 +1,77 @@
+# LBA – Automatisation des candidatures spontanées
+
+Pipeline n8n qui repère les entreprises susceptibles de recruter en alternance sur [La bonne alternance](https://labonnealternance.apprentissage.beta.gouv.fr/) (LBA), les classe, rédige un message de candidature personnalisé pour chacune et, à terme, l'envoie via l'API officielle.
+
+Projet personnel mené dans le cadre de ma recherche d'alternance (bassin Lens / Béthune / Lille, plusieurs filières : développement, maintenance, électricité, comptabilité). L'objectif est de faire du volume **sans sacrifier la personnalisation** : chaque message est rédigé à partir de l'activité réelle de l'entreprise et relu avant envoi.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[(Table codes ROME<br/>JobDataStudy)] --> B[01 · Collecte<br/>API LBA /job/v1/search]
+    B --> T[(lba_entreprises)]
+    T --> C[02 · Classification IT<br/>Tavily + LLM]
+    C --> T
+    T --> D[03 · Rédaction<br/>CV Drive + LLM]
+    D --> T
+    T --> V{Relecture<br/>manuelle}
+    V -->|statut = valide| E[04 · Envoi<br/>API LBA /job/v1/apply]
+    E --> T
+```
+
+Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon` → `valide` → `envoyee`.
+
+## Workflows
+
+| Fichier | Rôle | État |
+|---|---|---|
+| `workflows/01_collecte_entreprises.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée », dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
+| `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques à candidature simplifiée : recherche web (Tavily), puis classification par LLM (développement, réseau/support, cybersécurité, data…) avec un résumé d'activité et le site officiel. | Opérationnel, limité par le quota LLM gratuit |
+| `workflows/03_redaction_candidatures_dev.json` | Pour les entreprises classées « développement » : lit le CV (Google Drive), rédige un message de 120–180 mots et l'enregistre en brouillon. | Opérationnel |
+| Envoi | Envoie les messages validés via `POST /job/v1/apply` (CV en base64, 10 appels/min max). | À construire, en attente de l'habilitation `applications:write` |
+
+### Import
+
+1. Importer les JSON dans n8n.
+2. Remplacer les valeurs `REPLACE_ME` (credentials), `ID_TABLE_LBA_ENTREPRISES`, `ID_TABLE_CODES_ROME` et `ID_DU_CV_SUR_GOOGLE_DRIVE`.
+3. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, Google Gemini, Google Drive.
+
+## Table `lba_entreprises`
+
+| Colonne | Type | Contenu |
+|---|---|---|
+| `siret` | string | Clé de dédoublonnage |
+| `nom`, `adresse`, `taille`, `secteur_naf` | string | Données LBA |
+| `type_opportunite` | string | `candidature_spontanee` (ou `offre`, branche à venir) |
+| `code_rome` | string | Premier code ROME sur lequel l'entreprise est remontée |
+| `candidature_simplifiee` | boolean | `true` si l'API fournit un `apply.recipient_id` |
+| `recipient_id` | string | Destinataire à passer à la route d'envoi |
+| `lien_lba` | string | Fiche de l'entreprise sur LBA |
+| `site_web`, `telephone` | string | Rarement fournis par LBA ; `site_web` est complété par la classification |
+| `specialite`, `resume_activite` | string | Résultat de la classification IT |
+| `message_brouillon` | string | Message rédigé par le LLM |
+| `statut` | string | `a_traiter` / `brouillon` / `valide` / `envoyee` |
+| `application_id` | string | Identifiant renvoyé par l'API après envoi |
+| `date_collecte` | date | Date d'insertion |
+
+## Ce que j'ai appris de l'API La bonne alternance
+
+- **Recherche** (`GET /api/job/v1/search`, paramètres `romes`, `latitude`, `longitude`, `radius`) : la réponse contient `jobs` (offres) et `recruiters` (entreprises sans offre, jugées susceptibles de recruter).
+- **Plafond de 150 résultats par source**, triés par distance : sur un rayon de 50 km on récupère en réalité les 150 entreprises les plus proches par code ROME.
+- **Candidature simplifiée = présence de `apply.recipient_id`.** Sur la première collecte (4 codes ROME), 53 % des entreprises en avaient un ; seulement 31 % en comptabilité contre environ 60 % en maintenance et électricité.
+- `website` et `phone` sont presque toujours vides : il faut une étape de recherche pour trouver le site.
+- Le ciblage par code ROME est large (une recherche « comptabilité » remonte des holdings, de la promotion immobilière…), d'où l'intérêt d'une classification.
+- **Envoi** (`POST /api/job/v1/apply`) : nom, prénom, email, téléphone, CV (`.pdf`/`.docx` en base64) et `recipient_id` obligatoires, message facultatif. Requiert l'habilitation `applications:write` (automatique en sandbox, sur demande en production). Limite : 10 appels/minute.
+- Usage réservé aux projets non commerciaux.
+
+## Résultats à ce stade
+
+- 26 codes ROME suivis, **1 475 entreprises** collectées.
+- Informatique : environ 280 entreprises sous un code ROME IT, plus environ 200 avec un code NAF informatique rangées sous un autre code.
+- Premiers brouillons de messages générés et relus.
+
+Le détail des étapes, des problèmes rencontrés et des choix faits est dans [`docs/journal.md`](docs/journal.md).
+
+## Stack
+
+n8n (data tables, nœuds natifs, chaînes LLM) · API La bonne alternance · Tavily · Google Gemini · Google Drive

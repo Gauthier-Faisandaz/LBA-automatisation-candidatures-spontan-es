@@ -1,0 +1,158 @@
+{
+  "name": "LBA – Classification spécialité IT",
+  "nodes": [
+    { "id": "560f5dca-06a3-4e13-a72b-c8097ce13c27", "name": "Lancer", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {} },
+    {
+      "id": "89852674-e378-4859-a650-099ca25cc94f",
+      "name": "Entreprises simplifiées non classées",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [224, 0],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [ { "keyName": "candidature_simplifiee", "condition": "isTrue" }, { "keyName": "specialite", "condition": "isEmpty" } ] },
+        "returnAll": true
+      }
+    },
+    {
+      "id": "d864053a-2b66-4b6b-bfb9-fa318479e5f3",
+      "name": "Filtre informatique",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [448, 0],
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false, "leftValue": "", "typeValidation": "loose", "version": 2 },
+          "combinator": "or",
+          "conditions": [
+            { "id": "c1", "leftValue": "={{ $json.code_rome }}", "operator": { "type": "string", "operation": "startsWith" }, "rightValue": "M18" },
+            { "id": "c2", "leftValue": "={{ $json.code_rome }}", "operator": { "type": "string", "operation": "equals" }, "rightValue": "I1401" },
+            { "id": "c3", "leftValue": "={{ $json.secteur_naf }}", "operator": { "type": "string", "operation": "contains" }, "rightValue": "informatique" },
+            { "id": "c4", "leftValue": "={{ $json.secteur_naf }}", "operator": { "type": "string", "operation": "contains" }, "rightValue": "logiciel" },
+            { "id": "c5", "leftValue": "={{ $json.secteur_naf }}", "operator": { "type": "string", "operation": "contains" }, "rightValue": "Traitement de données" }
+          ]
+        },
+        "options": { "ignoreCase": true }
+      }
+    },
+    { "id": "0349f335-469d-4df0-beac-8ae7ee50c89f", "name": "Limite du lot", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [672, 0], "parameters": { "maxItems": 20 } },
+    {
+      "id": "6824e6a2-b53b-4e20-940b-819f72396d9f",
+      "name": "Recherche web",
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [896, 0],
+      "parameters": {
+        "resource": "search",
+        "operation": "query",
+        "query": "={{ $json.nom }} {{ $json.adresse }} entreprise activité",
+        "options": { "search_depth": "basic", "max_results": 5, "include_answer": "basic", "country": "france" }
+      },
+      "credentials": { "tavilyApi": { "id": "REPLACE_ME", "name": "Tavily account" } }
+    },
+    {
+      "id": "0c7d02dd-7e06-4d92-ba34-50255a9215fa",
+      "name": "Classification spécialité",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [1120, 0],
+      "parameters": {
+        "promptType": "define",
+        "hasOutputParser": true,
+        "text": "=Entreprise : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\nTaille : {{ $('Limite du lot').item.json.taille }} salariés\n\nRésumé de recherche : {{ $json.answer }}\n\nRésultats web :\n{{ $json.results.map(r => '- ' + r.url + ' | ' + r.title + ' : ' + (r.content || '').slice(0, 400)).join('\\n') }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Tu classes des entreprises françaises selon leur spécialité informatique principale, à partir de résultats de recherche web.\n\nValeurs autorisées pour \"specialite\" (une seule) :\n- developpement : éditeur de logiciel, agence web/mobile, développement sur mesure, SaaS\n- reseau_infra_support : infogérance, réseaux, systèmes, maintenance informatique, support utilisateurs, hébergement, télécoms\n- cybersecurite : sécurité des SI, audit, pentest, SOC\n- data_ia : data, BI, IA, traitement de données\n- erp_conseil : intégration ERP/CRM, conseil en SI, AMOA\n- esn_generaliste : ESN multi-activités sans dominante claire\n- non_it : l'informatique n'est pas le cœur de métier\n- inconnu : les résultats ne concernent pas clairement cette entreprise\n\nRègles :\n- Vérifie que les résultats parlent bien de la même entreprise (nom et ville). Sinon : \"inconnu\".\n- \"resume_activite\" : une phrase factuelle en français sur ce que fait l'entreprise, sans rien inventer. Vide si inconnu.\n- \"site_web\" : l'URL du site officiel de l'entreprise si elle apparaît dans les résultats (pas un annuaire type societe.com, pappers, pagesjaunes, linkedin). Sinon chaîne vide."
+            }
+          ]
+        },
+        "batching": { "batchSize": 1, "delayBetweenBatches": 15000 }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
+    },
+    {
+      "id": "c55e0e4e-ed45-4498-bd67-fde5b23e6dce",
+      "name": "Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [1056, 224],
+      "parameters": { "modelName": "models/gemini-3-flash-preview", "options": { "maxOutputTokens": 4096, "temperature": 0.2 } },
+      "credentials": { "googlePalmApi": { "id": "REPLACE_ME", "name": "Google Gemini(PaLM) Api account" } }
+    },
+    {
+      "id": "a6eb2785-e882-45e2-b8f3-1e864df6b77c",
+      "name": "Format classification",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [1264, 336],
+      "parameters": {
+        "schemaType": "fromJson",
+        "jsonSchemaExample": "{ \"specialite\": \"developpement\", \"resume_activite\": \"Éditeur d'un logiciel SaaS de gestion pour les PME, équipe de 15 personnes à Lille.\", \"site_web\": \"https://www.exemple.fr\" }"
+      }
+    },
+    {
+      "id": "2100bdf6-0b75-4cb4-96cd-aec98bf2afb8",
+      "name": "Classée ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [1344, 0],
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "conditions": [ { "id": "k1", "leftValue": "={{ $json.output?.specialite }}", "operator": { "operation": "notEmpty", "singleValue": true, "type": "string" }, "rightValue": "" } ],
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ac197a74-76c0-4e3d-bc94-f347b2bc5d02",
+      "name": "Mise à jour lba_entreprises",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [1568, 0],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
+        "matchType": "allConditions",
+        "filters": { "conditions": [ { "keyName": "siret", "condition": "eq", "keyValue": "={{ $('Limite du lot').item.json.siret }}" } ] },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "specialite": "={{ $json.output.specialite }}",
+            "resume_activite": "={{ $json.output.resume_activite }}",
+            "site_web": "={{ $json.output.site_web || $('Limite du lot').item.json.site_web }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            { "id": "specialite", "displayName": "specialite", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "resume_activite", "displayName": "resume_activite", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "site_web", "displayName": "site_web", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Lancer": { "main": [[{ "node": "Entreprises simplifiées non classées", "type": "main", "index": 0 }]] },
+    "Entreprises simplifiées non classées": { "main": [[{ "node": "Filtre informatique", "type": "main", "index": 0 }]] },
+    "Filtre informatique": { "main": [[{ "node": "Limite du lot", "type": "main", "index": 0 }]] },
+    "Limite du lot": { "main": [[{ "node": "Recherche web", "type": "main", "index": 0 }]] },
+    "Recherche web": { "main": [[{ "node": "Classification spécialité", "type": "main", "index": 0 }]] },
+    "Gemini": { "ai_languageModel": [[{ "node": "Classification spécialité", "type": "ai_languageModel", "index": 0 }]] },
+    "Format classification": { "ai_outputParser": [[{ "node": "Classification spécialité", "type": "ai_outputParser", "index": 0 }]] },
+    "Classification spécialité": { "main": [[{ "node": "Classée ?", "type": "main", "index": 0 }]] },
+    "Classée ?": { "main": [[{ "node": "Mise à jour lba_entreprises", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" }
+}
