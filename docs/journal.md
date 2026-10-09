@@ -53,6 +53,15 @@ Les quotas gratuits bloquant le volume, passage à des modèles payants via Open
 - Requête finale : nom exact entre guillemets + ville, annuaires exclus. Sur le cas ambigu, Jev répartit sa probabilité à 48/49 entre développement et réseau, avec une confiance de 0,4 : c'est exactement le signal voulu pour envoyer la ligne en relecture manuelle.
 - La rédaction ne traite donc que les entreprises `developpement` avec une confiance ≥ 0,7.
 
+### Prompt de rédaction v2 : un message qui assume d'être automatisé
+Constat : environ 90 candidatures manuelles, classiques, sans retour. Pour la filière informatique, le message change de parti pris : il dit ouvertement qu'il est envoyé par cette automatisation, que je l'ai construite moi-même, et renvoie vers ce dépôt. Le message devient une démonstration de compétences plutôt qu'une lettre de plus.
+
+- Le style s'inspire de mes lettres précédentes : « Bonjour, », phrases directes, profil atypique présenté franchement, honnêteté sur le fait que je ne suis pas encore développeur professionnel.
+- Le prompt fixe une liste de faits autorisés (parcours, compétences, certification en préparation présentée comme telle) et interdit d'en inventer.
+- Une seule phrase sur l'entreprise, tirée de son activité réelle ; si les infos sont floues, le message reste général.
+- Modèle : Claude Haiku 5.5. Les 8 premiers brouillons ont coûté moins d'un centime au total.
+- Observations sur ce premier lot : la personnalisation est juste (logiciels pour notaires, pour collectivités, pour l'immobilier, agences e-commerce) ; certains messages dépassent la longueur visée et répètent « ce message est automatisé » ; la structure est très proche d'un message à l'autre.
+
 ### Reste à faire
 - Obtenir l'habilitation `applications:write`, puis construire le workflow d'envoi (traitement des `valide`, 10 envois/min max, enregistrement de `application_id`).
 - Affiner le prompt de rédaction à partir d'exemples de messages déjà envoyés.
