@@ -13,7 +13,7 @@
         "operation": "get",
         "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
         "matchType": "allConditions",
-        "filters": { "conditions": [ { "keyName": "candidature_simplifiee", "condition": "isTrue" }, { "keyName": "specialite", "condition": "isEmpty" } ] },
+        "filters": { "conditions": [ { "condition": "isTrue", "keyName": "candidature_simplifiee" }, { "condition": "isEmpty", "keyName": "classifie_par" } ] },
         "returnAll": true
       }
     },
@@ -38,7 +38,7 @@
         "options": { "ignoreCase": true }
       }
     },
-    { "id": "0349f335-469d-4df0-beac-8ae7ee50c89f", "name": "Limite du lot", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [672, 0], "parameters": { "maxItems": 20 } },
+    { "id": "0349f335-469d-4df0-beac-8ae7ee50c89f", "name": "Limite du lot", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [672, 0], "parameters": { "maxItems": 150 } },
     {
       "id": "6824e6a2-b53b-4e20-940b-819f72396d9f",
       "name": "Recherche web",
@@ -48,67 +48,94 @@
       "parameters": {
         "resource": "search",
         "operation": "query",
-        "query": "={{ $json.nom }} {{ $json.adresse }} entreprise activité",
-        "options": { "search_depth": "basic", "max_results": 5, "include_answer": "basic", "country": "france" }
+        "query": "=\"{{ $json.nom }}\" {{ $json.adresse.split(' ').slice(-1)[0] }}",
+        "options": {
+          "search_depth": "basic",
+          "max_results": 5,
+          "include_answer": "basic",
+          "country": "france",
+          "exclude_domains": [
+            "societe.com", "pappers.fr", "annuaire-entreprises.data.gouv.fr", "entreprises.lagazettefrance.fr",
+            "entreprises.lefigaro.fr", "societeinfo.com", "pple.fr", "mappy.com", "pagesjaunes.fr", "e-pro.fr",
+            "infogreffe.fr", "verif.com", "manageo.fr", "linkedin.com", "indeed.com", "labonnealternance.apprentissage.beta.gouv.fr"
+          ]
+        }
       },
       "credentials": { "tavilyApi": { "id": "REPLACE_ME", "name": "Tavily account" } }
     },
     {
-      "id": "0c7d02dd-7e06-4d92-ba34-50255a9215fa",
-      "name": "Classification spécialité",
-      "type": "@n8n/n8n-nodes-langchain.chainLlm",
-      "typeVersion": 1.9,
+      "id": "b7e3cda3-2caf-413c-b280-fb7975908ec6",
+      "name": "Préparer l'état",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
       "position": [1120, 0],
       "parameters": {
-        "promptType": "define",
-        "hasOutputParser": true,
-        "text": "=Entreprise : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\nTaille : {{ $('Limite du lot').item.json.taille }} salariés\n\nRésumé de recherche : {{ $json.answer }}\n\nRésultats web :\n{{ $json.results.map(r => '- ' + r.url + ' | ' + r.title + ' : ' + (r.content || '').slice(0, 400)).join('\\n') }}",
-        "messages": {
-          "messageValues": [
-            {
-              "type": "SystemMessagePromptTemplate",
-              "message": "Tu classes des entreprises françaises selon leur spécialité informatique principale, à partir de résultats de recherche web.\n\nValeurs autorisées pour \"specialite\" (une seule) :\n- developpement : éditeur de logiciel, agence web/mobile, développement sur mesure, SaaS\n- reseau_infra_support : infogérance, réseaux, systèmes, maintenance informatique, support utilisateurs, hébergement, télécoms\n- cybersecurite : sécurité des SI, audit, pentest, SOC\n- data_ia : data, BI, IA, traitement de données\n- erp_conseil : intégration ERP/CRM, conseil en SI, AMOA\n- esn_generaliste : ESN multi-activités sans dominante claire\n- non_it : l'informatique n'est pas le cœur de métier\n- inconnu : les résultats ne concernent pas clairement cette entreprise\n\nRègles :\n- Vérifie que les résultats parlent bien de la même entreprise (nom et ville). Sinon : \"inconnu\".\n- \"resume_activite\" : une phrase factuelle en français sur ce que fait l'entreprise, sans rien inventer. Vide si inconnu.\n- \"site_web\" : l'URL du site officiel de l'entreprise si elle apparaît dans les résultats (pas un annuaire type societe.com, pappers, pagesjaunes, linkedin). Sinon chaîne vide."
-            }
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "e1", "name": "siret", "type": "string", "value": "={{ $('Limite du lot').item.json.siret }}" },
+            { "id": "e2", "name": "resume_web", "type": "string", "value": "={{ $json.answer || '' }}" },
+            { "id": "e3", "name": "contexte_web", "type": "string", "value": "={{ ($json.results || []).map(r => r.url + ' | ' + r.title + ' : ' + (r.content || '').slice(0, 300)).join('\\n').slice(0, 2000) }}" },
+            { "id": "e4", "name": "etat", "type": "string", "value": "=Entreprise : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\nTaille : {{ $('Limite du lot').item.json.taille }} salariés\n\nRésumé de recherche web : {{ $json.answer || '' }}\n\nRésultats web :\n{{ ($json.results || []).map(r => '- ' + r.url + ' | ' + r.title + ' : ' + (r.content || '').slice(0, 400)).join('\\n') }}" }
           ]
         },
-        "batching": { "batchSize": 1, "delayBetweenBatches": 15000 }
-      },
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "onError": "continueRegularOutput"
-    },
-    {
-      "id": "c55e0e4e-ed45-4498-bd67-fde5b23e6dce",
-      "name": "Gemini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.2,
-      "position": [1056, 224],
-      "parameters": { "modelName": "models/gemini-3-flash-preview", "options": { "maxOutputTokens": 4096, "temperature": 0.2 } },
-      "credentials": { "googlePalmApi": { "id": "REPLACE_ME", "name": "Google Gemini(PaLM) Api account" } }
-    },
-    {
-      "id": "a6eb2785-e882-45e2-b8f3-1e864df6b77c",
-      "name": "Format classification",
-      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
-      "typeVersion": 1.3,
-      "position": [1264, 336],
-      "parameters": {
-        "schemaType": "fromJson",
-        "jsonSchemaExample": "{ \"specialite\": \"developpement\", \"resume_activite\": \"Éditeur d'un logiciel SaaS de gestion pour les PME, équipe de 15 personnes à Lille.\", \"site_web\": \"https://www.exemple.fr\" }"
+        "options": {}
       }
     },
     {
-      "id": "2100bdf6-0b75-4cb4-96cd-aec98bf2afb8",
-      "name": "Classée ?",
+      "id": "c6e4eada-4697-40ae-9915-f3e2ed1e11d9",
+      "name": "Jev – spécialité",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [1344, 0],
+      "parameters": {
+        "method": "POST",
+        "url": "https://openrouter.ai/api/v1/systemone",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openRouterApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({\n  model: 'jev-1.13',\n  state: $json.etat,\n  questions: {\n    specialite: {\n      type: 'choice',\n      instructions: \"Quelle est l'activité informatique principale de cette entreprise ?\",\n      criteria: {\n        developpement: 'Éditeur de logiciel, agence web ou mobile, développement sur mesure, SaaS',\n        reseau_infra_support: 'Infogérance, réseaux, systèmes, maintenance informatique, support utilisateurs, hébergement, télécoms, vente de matériel informatique',\n        cybersecurite: 'Sécurité des systèmes d\\'information, audit, pentest, SOC',\n        data_ia: 'Data, BI, intelligence artificielle, traitement de données',\n        erp_conseil: 'Intégration ERP/CRM, conseil en systèmes d\\'information, AMOA',\n        esn_generaliste: 'ESN multi-activités sans dominante claire (infogérance, développement, conseil…)',\n        non_it: \"L'informatique n'est pas le cœur de métier (commerce, industrie, immobilier, comptabilité…)\"\n      }\n    },\n    meme_entreprise: {\n      type: 'noul',\n      instructions: \"Les résultats de recherche web décrivent-ils bien cette entreprise précise (même nom et même localisation), et non une homonyme ?\"\n    }\n  }\n}) }}",
+        "options": {}
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "credentials": { "openRouterApi": { "id": "REPLACE_ME", "name": "OpenRouter account" } }
+    },
+    {
+      "id": "7c5fc318-52d3-4490-bb79-2347b498e7eb",
+      "name": "Réponse valide ?",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
-      "position": [1344, 0],
+      "position": [1456, 0],
       "parameters": {
         "conditions": {
           "combinator": "and",
-          "conditions": [ { "id": "k1", "leftValue": "={{ $json.output?.specialite }}", "operator": { "operation": "notEmpty", "singleValue": true, "type": "string" }, "rightValue": "" } ],
+          "conditions": [ { "id": "v1", "leftValue": "={{ $json.answers?.specialite?.choice }}", "operator": { "operation": "notEmpty", "singleValue": true, "type": "string" }, "rightValue": "" } ],
           "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "ae6f8d6a-2d9e-429d-8361-c65ac63c8179",
+      "name": "Résultat classification",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1680, 0],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            { "id": "r1", "name": "siret", "type": "string", "value": "={{ $('Préparer l\\'état').item.json.siret }}" },
+            { "id": "r2", "name": "specialite", "type": "string", "value": "={{ $json.answers.meme_entreprise.noul >= 0.5 ? $json.answers.specialite.choice : 'inconnu' }}" },
+            { "id": "r3", "name": "specialite_confiance", "type": "number", "value": "={{ $json.answers.specialite.confidence }}" },
+            { "id": "r4", "name": "resume_activite", "type": "string", "value": "={{ $('Préparer l\\'état').item.json.resume_web }}" },
+            { "id": "r5", "name": "contexte_web", "type": "string", "value": "={{ $('Préparer l\\'état').item.json.contexte_web }}" },
+            { "id": "r6", "name": "classifie_par", "type": "string", "value": "={{ $json.model }}" }
+          ]
         },
         "options": {}
       }
@@ -118,25 +145,29 @@
       "name": "Mise à jour lba_entreprises",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [1568, 0],
+      "position": [1904, 0],
       "parameters": {
         "resource": "row",
         "operation": "update",
         "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
         "matchType": "allConditions",
-        "filters": { "conditions": [ { "keyName": "siret", "condition": "eq", "keyValue": "={{ $('Limite du lot').item.json.siret }}" } ] },
+        "filters": { "conditions": [ { "condition": "eq", "keyName": "siret", "keyValue": "={{ $json.siret }}" } ] },
         "columns": {
           "mappingMode": "defineBelow",
           "value": {
-            "specialite": "={{ $json.output.specialite }}",
-            "resume_activite": "={{ $json.output.resume_activite }}",
-            "site_web": "={{ $json.output.site_web || $('Limite du lot').item.json.site_web }}"
+            "specialite": "={{ $json.specialite }}",
+            "specialite_confiance": "={{ $json.specialite_confiance }}",
+            "resume_activite": "={{ $json.resume_activite }}",
+            "contexte_web": "={{ $json.contexte_web }}",
+            "classifie_par": "={{ $json.classifie_par }}"
           },
           "matchingColumns": [],
           "schema": [
             { "id": "specialite", "displayName": "specialite", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "specialite_confiance", "displayName": "specialite_confiance", "required": false, "defaultMatch": false, "display": true, "type": "number", "canBeUsedToMatch": true },
             { "id": "resume_activite", "displayName": "resume_activite", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "site_web", "displayName": "site_web", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+            { "id": "contexte_web", "displayName": "contexte_web", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
+            { "id": "classifie_par", "displayName": "classifie_par", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
           ]
         },
         "options": {}
@@ -148,11 +179,11 @@
     "Entreprises simplifiées non classées": { "main": [[{ "node": "Filtre informatique", "type": "main", "index": 0 }]] },
     "Filtre informatique": { "main": [[{ "node": "Limite du lot", "type": "main", "index": 0 }]] },
     "Limite du lot": { "main": [[{ "node": "Recherche web", "type": "main", "index": 0 }]] },
-    "Recherche web": { "main": [[{ "node": "Classification spécialité", "type": "main", "index": 0 }]] },
-    "Gemini": { "ai_languageModel": [[{ "node": "Classification spécialité", "type": "ai_languageModel", "index": 0 }]] },
-    "Format classification": { "ai_outputParser": [[{ "node": "Classification spécialité", "type": "ai_outputParser", "index": 0 }]] },
-    "Classification spécialité": { "main": [[{ "node": "Classée ?", "type": "main", "index": 0 }]] },
-    "Classée ?": { "main": [[{ "node": "Mise à jour lba_entreprises", "type": "main", "index": 0 }]] }
+    "Recherche web": { "main": [[{ "node": "Préparer l'état", "type": "main", "index": 0 }]] },
+    "Préparer l'état": { "main": [[{ "node": "Jev – spécialité", "type": "main", "index": 0 }]] },
+    "Jev – spécialité": { "main": [[{ "node": "Réponse valide ?", "type": "main", "index": 0 }]] },
+    "Réponse valide ?": { "main": [[{ "node": "Résultat classification", "type": "main", "index": 0 }]] },
+    "Résultat classification": { "main": [[{ "node": "Mise à jour lba_entreprises", "type": "main", "index": 0 }]] }
   },
   "settings": { "executionOrder": "v1" }
 }

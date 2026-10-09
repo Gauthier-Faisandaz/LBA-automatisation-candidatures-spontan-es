@@ -10,7 +10,7 @@ Projet personnel mené dans le cadre de ma recherche d'alternance (bassin Lens /
 flowchart LR
     A[(Table codes ROME<br/>JobDataStudy)] --> B[01 · Collecte<br/>API LBA /job/v1/search]
     B --> T[(lba_entreprises)]
-    T --> C[02 · Classification IT<br/>Tavily + LLM]
+    T --> C[02 · Classification IT<br/>Tavily + Jev]
     C --> T
     T --> D[03 · Rédaction<br/>CV Drive + LLM]
     D --> T
@@ -26,15 +26,15 @@ Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon
 | Fichier | Rôle | État |
 |---|---|---|
 | `workflows/01_collecte_entreprises.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée », dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
-| `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques à candidature simplifiée : recherche web (Tavily), puis classification par LLM (développement, réseau/support, cybersécurité, data…) avec un résumé d'activité et le site officiel. | Opérationnel, limité par le quota LLM gratuit |
-| `workflows/03_redaction_candidatures_dev.json` | Pour les entreprises classées « développement » : lit le CV (Google Drive), rédige un message de 120–180 mots et l'enregistre en brouillon. | Opérationnel |
+| `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques à candidature simplifiée : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
+| `workflows/03_redaction_candidatures_dev.json` | Pour les entreprises classées « développement » avec une confiance ≥ 0,7 : lit le CV (Google Drive), rédige un message de 120–180 mots avec Claude Haiku 5.5 (OpenRouter) et l'enregistre en brouillon. | Opérationnel, prompt en cours d'affinage |
 | Envoi | Envoie les messages validés via `POST /job/v1/apply` (CV en base64, 10 appels/min max). | À construire, en attente de l'habilitation `applications:write` |
 
 ### Import
 
 1. Importer les JSON dans n8n.
 2. Remplacer les valeurs `REPLACE_ME` (credentials), `ID_TABLE_LBA_ENTREPRISES`, `ID_TABLE_CODES_ROME` et `ID_DU_CV_SUR_GOOGLE_DRIVE`.
-3. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, Google Gemini, Google Drive.
+3. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, OpenRouter, Google Drive.
 
 ## Table `lba_entreprises`
 
@@ -48,7 +48,10 @@ Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon
 | `recipient_id` | string | Destinataire à passer à la route d'envoi |
 | `lien_lba` | string | Fiche de l'entreprise sur LBA |
 | `site_web`, `telephone` | string | Rarement fournis par LBA ; `site_web` est complété par la classification |
-| `specialite`, `resume_activite` | string | Résultat de la classification IT |
+| `specialite` | string | Spécialité choisie par Jev (`inconnu` si les résultats web ne concernent pas l'entreprise) |
+| `specialite_confiance` | number | Confiance de Jev (0–1) ; en dessous de 0,7, l'entreprise est à vérifier à la main |
+| `resume_activite`, `contexte_web` | string | Résumé et extraits de la recherche web, réutilisés pour la rédaction |
+| `classifie_par` | string | Version du modèle ayant classé la ligne |
 | `message_brouillon` | string | Message rédigé par le LLM |
 | `statut` | string | `a_traiter` / `brouillon` / `valide` / `envoyee` |
 | `application_id` | string | Identifiant renvoyé par l'API après envoi |
@@ -68,10 +71,11 @@ Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon
 
 - 26 codes ROME suivis, **1 475 entreprises** collectées.
 - Informatique : environ 280 entreprises sous un code ROME IT, plus environ 200 avec un code NAF informatique rangées sous un autre code.
+- 85 entreprises informatiques à candidature simplifiée classées par Jev pour environ 0,005 $ au total : 20 réseau/support, 22 hors IT, 12 développement (dont 8 avec une confiance ≥ 0,7), 9 ERP/conseil, 7 ESN généralistes, 4 cybersécurité, 3 data, 8 inconnues.
 - Premiers brouillons de messages générés et relus.
 
 Le détail des étapes, des problèmes rencontrés et des choix faits est dans [`docs/journal.md`](docs/journal.md).
 
 ## Stack
 
-n8n (data tables, nœuds natifs, chaînes LLM) · API La bonne alternance · Tavily · Google Gemini · Google Drive
+n8n (data tables, nœuds natifs, chaînes LLM) · API La bonne alternance · Tavily · OpenRouter (Jev de TypeSafe pour la classification, Claude Haiku 5.5 pour la rédaction) · Google Drive

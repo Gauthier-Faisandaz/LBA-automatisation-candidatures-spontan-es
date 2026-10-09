@@ -1,61 +1,130 @@
 {
   "name": "LBA – Rédaction candidatures dev",
   "nodes": [
-    { "id": "d7544c5c-df47-4e4d-a95f-0466b03d4b5b", "name": "Lancer", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [0, 0], "parameters": {} },
+    {
+      "id": "d7544c5c-df47-4e4d-a95f-0466b03d4b5b",
+      "name": "Lancer",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
     {
       "id": "1342e75d-2b26-42fb-9d85-7dab46ce76cd",
       "name": "CV dev (Drive)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
-      "position": [224, 0],
+      "position": [
+        224,
+        0
+      ],
       "parameters": {
         "resource": "file",
         "operation": "download",
-        "fileId": { "__rl": true, "mode": "id", "value": "ID_DU_CV_SUR_GOOGLE_DRIVE" },
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "ID_DU_CV_SUR_GOOGLE_DRIVE"
+        },
         "options": {}
       },
-      "credentials": { "googleDriveOAuth2Api": { "id": "REPLACE_ME", "name": "Google Drive account" } }
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive account"
+        }
+      }
     },
     {
       "id": "e22536db-7356-4cac-ac69-921942af8cde",
       "name": "Texte du CV",
       "type": "n8n-nodes-base.extractFromFile",
       "typeVersion": 1.1,
-      "position": [448, 0],
-      "parameters": { "operation": "pdf", "options": { "joinPages": true } }
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true
+        }
+      }
     },
     {
       "id": "ce064d08-8c12-40e8-815f-1cceb0452e7b",
       "name": "Cibles développement à traiter",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [672, 0],
+      "position": [
+        672,
+        0
+      ],
       "parameters": {
         "resource": "row",
         "operation": "get",
-        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
         "matchType": "allConditions",
         "filters": {
           "conditions": [
-            { "keyName": "specialite", "condition": "eq", "keyValue": "developpement" },
-            { "keyName": "candidature_simplifiee", "condition": "isTrue" },
-            { "keyName": "statut", "condition": "eq", "keyValue": "a_traiter" }
+            {
+              "keyName": "specialite",
+              "condition": "eq",
+              "keyValue": "developpement"
+            },
+            {
+              "keyName": "candidature_simplifiee",
+              "condition": "isTrue"
+            },
+            {
+              "keyName": "statut",
+              "condition": "eq",
+              "keyValue": "a_traiter"
+            },
+            {
+              "keyName": "specialite_confiance",
+              "condition": "gte",
+              "keyValue": "0.7"
+            }
           ]
         },
         "returnAll": true
       }
     },
-    { "id": "83b4fbd6-0f1c-4ee2-87ce-db848d3859c6", "name": "Limite du lot", "type": "n8n-nodes-base.limit", "typeVersion": 1, "position": [896, 0], "parameters": { "maxItems": 5 } },
+    {
+      "id": "83b4fbd6-0f1c-4ee2-87ce-db848d3859c6",
+      "name": "Limite du lot",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "maxItems": 5
+      }
+    },
     {
       "id": "7fe76ca2-2ba7-4b89-8e61-4f9a05cafe06",
       "name": "Rédaction du message",
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
-      "position": [1120, 0],
+      "position": [
+        1120,
+        0
+      ],
       "parameters": {
         "promptType": "define",
         "hasOutputParser": false,
-        "text": "=ENTREPRISE\nNom : {{ $json.nom }}\nAdresse : {{ $json.adresse }}\nTaille : {{ $json.taille }} salariés\nActivité : {{ $json.resume_activite }}\nSite : {{ $json.site_web }}\n\nCV DU CANDIDAT\n{{ $('Texte du CV').first().json.text.slice(0, 6000) }}",
+        "text": "=ENTREPRISE\nNom : {{ $json.nom }}\nAdresse : {{ $json.adresse }}\nTaille : {{ $json.taille }} salariés\nCode NAF : {{ $json.secteur_naf }}\nRésumé d'activité (recherche web, peut être en anglais) : {{ $json.resume_activite }}\n\nExtraits web bruts (peuvent contenir du bruit ou des homonymes, à utiliser avec prudence) :\n{{ $json.contexte_web }}\n\nCV DU CANDIDAT\n{{ $('Texte du CV').first().json.text.slice(0, 6000) }}",
         "messages": {
           "messageValues": [
             {
@@ -64,7 +133,10 @@
             }
           ]
         },
-        "batching": { "batchSize": 1, "delayBetweenBatches": 15000 }
+        "batching": {
+          "batchSize": 3,
+          "delayBetweenBatches": 0
+        }
       },
       "retryOnFail": true,
       "maxTries": 3,
@@ -72,25 +144,35 @@
       "onError": "continueRegularOutput"
     },
     {
-      "id": "acc48e35-2a1e-4c4c-9a2b-f9b1040753e2",
-      "name": "Gemini",
-      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
-      "typeVersion": 1.2,
-      "position": [1056, 224],
-      "parameters": { "modelName": "models/gemini-3-flash-preview", "options": { "maxOutputTokens": 4096, "temperature": 0.6 } },
-      "credentials": { "googlePalmApi": { "id": "REPLACE_ME", "name": "Google Gemini(PaLM) Api account" } }
-    },
-    {
       "id": "acd2df3a-b9c7-446a-88fa-dc29cd511e55",
       "name": "Message généré ?",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2.3,
-      "position": [1344, 0],
+      "position": [
+        1344,
+        0
+      ],
       "parameters": {
         "conditions": {
           "combinator": "and",
-          "conditions": [ { "id": "k1", "leftValue": "={{ $json.text }}", "operator": { "operation": "notEmpty", "singleValue": true, "type": "string" }, "rightValue": "" } ],
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose", "version": 2 }
+          "conditions": [
+            {
+              "id": "k1",
+              "leftValue": "={{ $json.text }}",
+              "operator": {
+                "operation": "notEmpty",
+                "singleValue": true,
+                "type": "string"
+              },
+              "rightValue": ""
+            }
+          ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          }
         },
         "options": {}
       }
@@ -100,35 +182,178 @@
       "name": "Enregistrer le brouillon",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
-      "position": [1568, 0],
+      "position": [
+        1568,
+        0
+      ],
       "parameters": {
         "resource": "row",
         "operation": "update",
-        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_LBA_ENTREPRISES", "cachedResultName": "lba_entreprises" },
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
         "matchType": "allConditions",
-        "filters": { "conditions": [ { "keyName": "siret", "condition": "eq", "keyValue": "={{ $('Limite du lot').item.json.siret }}" } ] },
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "siret",
+              "condition": "eq",
+              "keyValue": "={{ $('Limite du lot').item.json.siret }}"
+            }
+          ]
+        },
         "columns": {
           "mappingMode": "defineBelow",
-          "value": { "message_brouillon": "={{ $json.text.trim() }}", "statut": "brouillon" },
+          "value": {
+            "message_brouillon": "={{ $json.text.trim() }}",
+            "statut": "brouillon"
+          },
           "matchingColumns": [],
           "schema": [
-            { "id": "message_brouillon", "displayName": "message_brouillon", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true },
-            { "id": "statut", "displayName": "statut", "required": false, "defaultMatch": false, "display": true, "type": "string", "canBeUsedToMatch": true }
+            {
+              "id": "message_brouillon",
+              "displayName": "message_brouillon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
           ]
         },
         "options": {}
       }
+    },
+    {
+      "id": "9b1f0c2e-haiku",
+      "name": "Claude Haiku 5.5 (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        224
+      ],
+      "parameters": {
+        "model": "anthropic/claude-haiku-5.5",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 4096,
+          "providerRouting": {
+            "sort": "price"
+          }
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter account"
+        }
+      }
     }
   ],
   "connections": {
-    "Lancer": { "main": [[{ "node": "CV dev (Drive)", "type": "main", "index": 0 }]] },
-    "CV dev (Drive)": { "main": [[{ "node": "Texte du CV", "type": "main", "index": 0 }]] },
-    "Texte du CV": { "main": [[{ "node": "Cibles développement à traiter", "type": "main", "index": 0 }]] },
-    "Cibles développement à traiter": { "main": [[{ "node": "Limite du lot", "type": "main", "index": 0 }]] },
-    "Limite du lot": { "main": [[{ "node": "Rédaction du message", "type": "main", "index": 0 }]] },
-    "Gemini": { "ai_languageModel": [[{ "node": "Rédaction du message", "type": "ai_languageModel", "index": 0 }]] },
-    "Rédaction du message": { "main": [[{ "node": "Message généré ?", "type": "main", "index": 0 }]] },
-    "Message généré ?": { "main": [[{ "node": "Enregistrer le brouillon", "type": "main", "index": 0 }]] }
+    "Lancer": {
+      "main": [
+        [
+          {
+            "node": "CV dev (Drive)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV dev (Drive)": {
+      "main": [
+        [
+          {
+            "node": "Texte du CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texte du CV": {
+      "main": [
+        [
+          {
+            "node": "Cibles développement à traiter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cibles développement à traiter": {
+      "main": [
+        [
+          {
+            "node": "Limite du lot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limite du lot": {
+      "main": [
+        [
+          {
+            "node": "Rédaction du message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rédaction du message": {
+      "main": [
+        [
+          {
+            "node": "Message généré ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message généré ?": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le brouillon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku 5.5 (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rédaction du message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1" }
+  "settings": {
+    "executionOrder": "v1"
+  }
 }

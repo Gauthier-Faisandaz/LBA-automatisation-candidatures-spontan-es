@@ -38,9 +38,25 @@ Besoin : je n'envoie pas le même CV à une ESN réseau, une boîte de cyberséc
 - Premier essai tronqué en plein milieu : Gemini 3 compte ses tokens de réflexion dans la limite de sortie. Passage de 1 024 à 4 096 tokens.
 - Les messages sont enregistrés en `brouillon` : je relis et passe en `valide` ce qui part.
 
+### Passage à OpenRouter et à Jev
+Les quotas gratuits bloquant le volume, passage à des modèles payants via OpenRouter, choisis pour le rapport qualité-prix :
+
+- **Classification → Jev (TypeSafe).** Jev n'écrit pas de texte : on lui envoie un état (les infos de l'entreprise) et des questions typées, il renvoie un choix, une distribution de probabilités et une confiance. C'est exactement le besoin d'un tri, sans parsing de JSON ni prompt de format. Appel via l'API Decisions d'OpenRouter (`POST /api/v1/systemone`, modèle `jev-1.13`), avec deux questions :
+  - `specialite` (choice) : une des 7 catégories ;
+  - `meme_entreprise` (noul, 0–1) : les résultats web parlent-ils bien de cette entreprise ? En dessous de 0,5, la spécialité est forcée à `inconnu`.
+  Coût mesuré : environ 0,00006 $ par entreprise. Latence inférieure à 1 s.
+- **Rédaction → Claude Haiku 5.5** (0,10 $ / 0,50 $ par million de tokens), qui reste un modèle génératif.
+
+### Ce que la confiance de Jev a révélé
+- Premier essai : les résultats Tavily étaient dominés par les annuaires (societe.com, Pappers…) qui ne donnent que le code NAF. Jev répondait alors « développement » avec une confiance de 1 pour toute entreprise en 62.01Z, y compris une société en réalité orientée maintenance matérielle.
+- Exclure les annuaires sans changer la requête a produit l'effet inverse pour les petites structures sans site : du bruit (BODACC, homonymes). La question `meme_entreprise` l'a bien détecté (scores de 0,17 à 0,56).
+- Requête finale : nom exact entre guillemets + ville, annuaires exclus. Sur le cas ambigu, Jev répartit sa probabilité à 48/49 entre développement et réseau, avec une confiance de 0,4 : c'est exactement le signal voulu pour envoyer la ligne en relecture manuelle.
+- La rédaction ne traite donc que les entreprises `developpement` avec une confiance ≥ 0,7.
+
 ### Reste à faire
 - Obtenir l'habilitation `applications:write`, puis construire le workflow d'envoi (traitement des `valide`, 10 envois/min max, enregistrement de `application_id`).
-- Choisir un fournisseur LLM au débit suffisant pour classer quelques centaines d'entreprises.
+- Affiner le prompt de rédaction à partir d'exemples de messages déjà envoyés.
+- Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Phase 3 : recherche de contact pour les entreprises sans candidature simplifiée.
 - CV et prompts pour les autres filières (réseau/support, maintenance, électricité, comptabilité).
