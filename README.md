@@ -1,8 +1,9 @@
 # LBA – Automatisation des candidatures spontanées
 
 > **Vous arrivez ici depuis mon message de candidature ?**
-> Bonjour ! Oui, le message que vous avez reçu a été envoyé par ce projet. Je cherche une alternance en développement d'applications pour 2026-2027 et, plutôt que d'envoyer des candidatures génériques, j'ai construit cet outil : il repère les entreprises susceptibles de recruter, fait une recherche sur chacune, les trie par spécialité, rédige un message adapté que je relis, puis l'envoie. Le schéma ci-dessous montre comment ça marche, et [`docs/journal.md`](docs/journal.md) raconte la construction, problèmes compris.
-> Pour me répondre, il suffit de répondre au message reçu. — Gauthier Faisandaz
+> Bonjour ! Oui, le message que vous avez reçu a été envoyé par ce projet. Je cherche une alternance en informatique (développement d'application, réseau-infra, cybersécurité, QA ...) pour 2026-2027 et, plutôt que d'envoyer des candidatures génériques, j'ai construit cet outil : il repère les entreprises susceptibles de recruter, fait une recherche sur chacune, les trie par spécialité, rédige un message adapté que je relis, puis l'envoie. Le schéma ci-dessous montre comment ça marche, et [`docs/journal.md`](docs/journal.md) raconte la construction, problèmes compris.
+> Pour me répondre, il suffit de répondre au message reçu.
+> — Gauthier Faisandaz
 
 Pipeline n8n qui repère les entreprises susceptibles de recruter en alternance sur [La bonne alternance](https://labonnealternance.apprentissage.beta.gouv.fr/) (LBA), les classe, rédige un message de candidature personnalisé pour chacune et, à terme, l'envoie via l'API officielle.
 
