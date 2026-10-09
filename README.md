@@ -7,7 +7,7 @@
 
 Pipeline n8n qui repère les entreprises susceptibles de recruter en alternance sur [La bonne alternance](https://labonnealternance.apprentissage.beta.gouv.fr/) (LBA), les classe, rédige un message de candidature personnalisé pour chacune et, à terme, l'envoie via l'API officielle.
 
-Projet personnel mené dans le cadre de ma recherche d'alternance (bassin Lens / Béthune / Lille, plusieurs filières : développement, maintenance, électricité, comptabilité). L'objectif est de faire du volume **sans sacrifier la personnalisation** : chaque message est rédigé à partir de l'activité réelle de l'entreprise et relu avant envoi.
+Projet personnel mené dans le cadre de ma recherche d'alternance (bassin Lens / Béthune / Lille) en informatique. L'objectif est de faire du volume **sans sacrifier la personnalisation** : chaque message est rédigé à partir de l'activité réelle de l'entreprise et relu avant envoi.
 
 ## Architecture
 
