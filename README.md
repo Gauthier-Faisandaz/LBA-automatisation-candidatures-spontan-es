@@ -13,7 +13,7 @@ Projet personnel mené dans le cadre de ma recherche d'alternance (bassin Lens /
 
 ```mermaid
 flowchart LR
-    A[(Table codes ROME<br/>JobDataStudy)] --> B[01 · Collecte<br/>API LBA /job/v1/search]
+    A[(Table des<br/>codes ROME suivis)] --> B[01 · Collecte<br/>API LBA /job/v1/search]
     B --> T[(lba_entreprises)]
     T --> C[02 · Classification IT<br/>Tavily + Jev]
     C --> T
@@ -66,16 +66,15 @@ Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon
 
 - **Recherche** (`GET /api/job/v1/search`, paramètres `romes`, `latitude`, `longitude`, `radius`) : la réponse contient `jobs` (offres) et `recruiters` (entreprises sans offre, jugées susceptibles de recruter).
 - **Plafond de 150 résultats par source**, triés par distance : sur un rayon de 50 km on récupère en réalité les 150 entreprises les plus proches par code ROME.
-- **Candidature simplifiée = présence de `apply.recipient_id`.** Sur la première collecte (4 codes ROME), 53 % des entreprises en avaient un ; seulement 31 % en comptabilité contre environ 60 % en maintenance et électricité.
+- **Candidature simplifiée = présence de `apply.recipient_id`.** Environ une entreprise sur deux en a un, avec de fortes variations selon le code ROME.
 - `website` et `phone` sont presque toujours vides : il faut une étape de recherche pour trouver le site.
-- Le ciblage par code ROME est large (une recherche « comptabilité » remonte des holdings, de la promotion immobilière…), d'où l'intérêt d'une classification.
+- Le ciblage par code ROME est large : un code « informatique » remonte aussi des commerces, des holdings ou des entreprises dont l'informatique n'est pas le métier, d'où l'intérêt d'une classification.
 - **Envoi** (`POST /api/job/v1/apply`) : nom, prénom, email, téléphone, CV (`.pdf`/`.docx` en base64) et `recipient_id` obligatoires, message facultatif. Requiert l'habilitation `applications:write` (automatique en sandbox, sur demande en production). Limite : 10 appels/minute.
 - Usage réservé aux projets non commerciaux.
 
 ## Résultats à ce stade
 
-- 26 codes ROME suivis, **1 475 entreprises** collectées.
-- Informatique : environ 280 entreprises sous un code ROME IT, plus environ 200 avec un code NAF informatique rangées sous un autre code.
+- Près de **500 entreprises du secteur informatique** repérées autour de Lens / Béthune / Lille (codes ROME et codes NAF informatiques).
 - 85 entreprises informatiques à candidature simplifiée classées par Jev pour environ 0,005 $ au total : 20 réseau/support, 22 hors IT, 12 développement (dont 8 avec une confiance ≥ 0,7), 9 ERP/conseil, 7 ESN généralistes, 4 cybersécurité, 3 data, 8 inconnues.
 - Premiers brouillons de messages générés et relus.
 

@@ -12,11 +12,11 @@
     {
       "parameters": {
         "operation": "get",
-        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_CODES_ROME", "cachedResultName": "JobDataStudy code rome" },
+        "dataTableId": { "__rl": true, "mode": "list", "value": "ID_TABLE_CODES_ROME", "cachedResultName": "codes_rome" },
         "returnAll": true
       },
       "id": "dd618a48-63c8-43ab-b13f-f99c15bb1250",
-      "name": "Codes ROME (JobDataStudy)",
+      "name": "Codes ROME suivis",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [224, 0]
@@ -133,8 +133,8 @@
     }
   ],
   "connections": {
-    "When clicking ‘Execute workflow’": { "main": [[{ "node": "Codes ROME (JobDataStudy)", "type": "main", "index": 0 }]] },
-    "Codes ROME (JobDataStudy)": { "main": [[{ "node": "Paramètres", "type": "main", "index": 0 }]] },
+    "When clicking ‘Execute workflow’": { "main": [[{ "node": "Codes ROME suivis", "type": "main", "index": 0 }]] },
+    "Codes ROME suivis": { "main": [[{ "node": "Paramètres", "type": "main", "index": 0 }]] },
     "Paramètres": { "main": [[{ "node": "Collecte \"La Bonne Alternance\"", "type": "main", "index": 0 }]] },
     "Collecte \"La Bonne Alternance\"": { "main": [[{ "node": "Split Out1", "type": "main", "index": 0 }]] },
     "Split Out1": { "main": [[{ "node": "Mapping recruteur", "type": "main", "index": 0 }]] },

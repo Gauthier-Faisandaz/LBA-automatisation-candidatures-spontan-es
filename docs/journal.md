@@ -14,11 +14,11 @@ Trois phases :
 - Je n'ai pas testé l'envoi avec ma clé : si elle avait déjà le droit d'envoyer, un test aurait produit une vraie candidature. La route exige l'habilitation `applications:write`, à demander pour une clé de production.
 
 ### Workflow 01 — Collecte
-- Première version : liste de 4 codes ROME en dur → Split Out → HTTP Request → mapping → table. 550 entreprises, dont 291 en candidature simplifiée.
+- Première version : quelques codes ROME en dur → Split Out → HTTP Request → mapping → table.
 - Choix « insérer seulement si le SIRET est absent » plutôt qu'un upsert : un upsert remettrait `statut` à `a_traiter` à chaque collecte et ferait perdre le suivi.
 - Colonne `distance_km` supprimée : l'API ne la renvoie pas.
-- Les codes ROME sont ensuite lus depuis la table déjà utilisée par mon projet JobDataStudy (26 codes) → 1 475 entreprises.
-- Limite connue : une entreprise remontée sur plusieurs codes garde le premier rencontré. C'est pour ça que des entreprises informatiques se retrouvent classées en comptabilité, et que le filtre « informatique » combine code ROME **et** code NAF.
+- Les codes ROME sont ensuite lus depuis une data table : on peut en ajouter ou en retirer sans toucher au workflow.
+- Limite connue : une entreprise remontée sur plusieurs codes ROME garde le premier rencontré. C'est pour ça que le filtre « informatique » de l'étape suivante combine code ROME **et** code NAF.
 
 ### Workflow 02 — Classification par spécialité
 Besoin : je n'envoie pas le même CV à une ESN réseau, une boîte de cybersécurité ou un éditeur de logiciel. Le CV « concepteur développeur d'applications » ne sert que pour les entreprises orientées développement.
@@ -54,7 +54,7 @@ Les quotas gratuits bloquant le volume, passage à des modèles payants via Open
 - La rédaction ne traite donc que les entreprises `developpement` avec une confiance ≥ 0,7.
 
 ### Prompt de rédaction v2 : un message qui assume d'être automatisé
-Constat : environ 90 candidatures manuelles, classiques, sans retour. Pour la filière informatique, le message change de parti pris : il dit ouvertement qu'il est envoyé par cette automatisation, que je l'ai construite moi-même, et renvoie vers ce dépôt. Le message devient une démonstration de compétences plutôt qu'une lettre de plus.
+Constat : environ 90 candidatures manuelles, classiques, sans retour. Le message change donc de parti pris : il dit ouvertement qu'il est envoyé par cette automatisation, que je l'ai construite moi-même, et renvoie vers ce dépôt. Le message devient une démonstration de compétences plutôt qu'une lettre de plus.
 
 - Le style s'inspire de mes lettres précédentes : « Bonjour, », phrases directes, profil atypique présenté franchement, honnêteté sur le fait que je ne suis pas encore développeur professionnel.
 - Le prompt fixe une liste de faits autorisés (parcours, compétences, certification en préparation présentée comme telle) et interdit d'en inventer.
@@ -64,8 +64,7 @@ Constat : environ 90 candidatures manuelles, classiques, sans retour. Pour la fi
 
 ### Reste à faire
 - Obtenir l'habilitation `applications:write`, puis construire le workflow d'envoi (traitement des `valide`, 10 envois/min max, enregistrement de `application_id`).
-- Affiner le prompt de rédaction à partir d'exemples de messages déjà envoyés.
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Phase 3 : recherche de contact pour les entreprises sans candidature simplifiée.
-- CV et prompts pour les autres filières (réseau/support, maintenance, électricité, comptabilité).
+- CV et prompts pour les autres spécialités informatiques (réseau/infra, cybersécurité, data, QA).
