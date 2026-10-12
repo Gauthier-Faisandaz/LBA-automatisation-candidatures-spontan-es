@@ -62,9 +62,25 @@ Constat : environ 90 candidatures manuelles, classiques, sans retour. Le message
 - Modèle : Claude Haiku 5.5. Les 8 premiers brouillons ont coûté moins d'un centime au total.
 - Observations sur ce premier lot : la personnalisation est juste (logiciels pour notaires, pour collectivités, pour l'immobilier, agences e-commerce) ; certains messages dépassent la longueur visée et répètent « ce message est automatisé » ; la structure est très proche d'un message à l'autre.
 
+### Relecture par une seconde IA
+Objectif à terme : ne plus relire chaque message à la main. Après la rédaction, un second modèle, d'un autre éditeur pour ne pas reproduire les mêmes biais, relit le texte avec la même fiche de profil.
+
+- Il vérifie : surévaluation des compétences, faits inventés sur l'entreprise, répétitions (notamment « ce message est automatisé » dit deux fois), artefacts (listes à puces, formules de politesse en trop, signature, lien).
+- Il rend un verdict `ok`, `corrige` (retouches minimales) ou `rejete`, avec la liste des problèmes. Le texte d'origine est conservé pour comparer.
+- Premier lot de 8 : 5 `ok`, 3 `corrige`, à chaque fois pour la même répétition. Deux réponses vides au départ : DeepSeek manquait de tokens pour sa réflexion (limite relevée à 12 000).
+- La fiche de profil précise mon niveau réel : prototypeur plutôt que développeur, SQL surtout via des interfaces graphiques, certaines compétences du CV seulement côtoyées. Par défaut, le message ne cite aucun langage ni outil.
+
+### Toutes les branches informatiques
+Un seul workflow de rédaction pour toutes les spécialités. Ce qui change d'une branche à l'autre (CV joint, cible d'alternance, angle et niveau réel dans le domaine) vit dans une table `lba_branches`, éditée depuis un petit workflow de configuration.
+
+- Développement, data/IA, cybersécurité, systèmes et réseaux : un CV et des consignes chacun. Les consignes data et cyber reprennent la démarche de lettres que j'avais écrites à la main (le réflexe de chercheur qui questionne la donnée avant de l'analyser ; la dimension d'enquête de la cybersécurité).
+- Test sur une entreprise data et une entreprise cyber : messages cohérents avec la branche. La relecture a corrigé une surévaluation (« plusieurs années d'UX research » au lieu d'environ un an) et remis en prose une liste à puces.
+- Quand la recherche web est floue (homonymes, résultats sans rapport), le message reste général sur l'entreprise au lieu d'inventer : la consigne fonctionne.
+
 ### Reste à faire
 - Obtenir l'habilitation `applications:write`, puis construire le workflow d'envoi (traitement des `valide`, 10 envois/min max, enregistrement de `application_id`).
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Phase 3 : recherche de contact pour les entreprises sans candidature simplifiée.
-- CV et prompts pour les autres spécialités informatiques (réseau/infra, cybersécurité, data, QA).
+- Décider quoi envoyer aux ESN généralistes et aux intégrateurs ERP/conseil (pas encore de branche).
+- Calibrer la rédaction sur un échantillon par branche avant de lancer en volume.

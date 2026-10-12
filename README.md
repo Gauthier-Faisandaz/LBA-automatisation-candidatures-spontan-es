@@ -17,29 +17,33 @@ flowchart LR
     B --> T[(lba_entreprises)]
     T --> C[02 · Classification IT<br/>Tavily + Jev]
     C --> T
-    T --> D[03 · Rédaction<br/>CV Drive + LLM]
-    D --> T
-    T --> V{Relecture<br/>manuelle}
+    R[(lba_branches<br/>CV + consignes<br/>par spécialité)] --> D
+    T --> D[03 · Rédaction<br/>Claude Haiku]
+    D --> RL[Relecture<br/>DeepSeek]
+    RL --> T
+    T --> V{Contrôle<br/>par échantillon}
     V -->|statut = valide| E[04 · Envoi<br/>API LBA /job/v1/apply]
     E --> T
 ```
 
-Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon` → `valide` → `envoyee`.
+Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon` (ou `a_revoir` si la relecture échoue ou rejette le message) → `valide` → `envoyee`.
 
 ## Workflows
 
 | Fichier | Rôle | État |
 |---|---|---|
+| `workflows/00_configuration_branches.json` | Point d'édition des branches : pour chaque spécialité (développement, data/IA, cybersécurité, systèmes et réseaux), le CV à joindre, la cible d'alternance, les consignes de rédaction et un interrupteur `actif`. Écrit dans la table `lba_branches`. | Opérationnel |
 | `workflows/01_collecte_entreprises.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée », dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
 | `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques à candidature simplifiée : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
-| `workflows/03_redaction_candidatures_dev.json` | Pour les entreprises classées « développement » avec une confiance ≥ 0,7 : lit le CV (Google Drive), rédige un message de 120–180 mots avec Claude Haiku 5.5 (OpenRouter) et l'enregistre en brouillon. | Opérationnel, prompt en cours d'affinage |
+| `workflows/03_redaction_candidatures_it.json` | Pour chaque entreprise classée avec une confiance ≥ 0,7 dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout. | Opérationnel, en phase de calibration |
 | Envoi | Envoie les messages validés via `POST /job/v1/apply` (CV en base64, 10 appels/min max). | À construire, en attente de l'habilitation `applications:write` |
 
 ### Import
 
 1. Importer les JSON dans n8n.
-2. Remplacer les valeurs `REPLACE_ME` (credentials), `ID_TABLE_LBA_ENTREPRISES`, `ID_TABLE_CODES_ROME` et `ID_DU_CV_SUR_GOOGLE_DRIVE`.
-3. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, OpenRouter, Google Drive.
+2. Remplacer les valeurs `REPLACE_ME` (credentials), `ID_TABLE_LBA_ENTREPRISES`, `ID_TABLE_LBA_BRANCHES`, `ID_TABLE_CODES_ROME` et les `ID_CV_…_SUR_GOOGLE_DRIVE`.
+3. Lancer `00_configuration_branches` une fois pour remplir `lba_branches`.
+4. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, OpenRouter, Google Drive.
 
 ## Table `lba_entreprises`
 
@@ -57,8 +61,10 @@ Le suivi repose sur la colonne `statut` de la table : `a_traiter` → `brouillon
 | `specialite_confiance` | number | Confiance de Jev (0–1) ; en dessous de 0,7, l'entreprise est à vérifier à la main |
 | `resume_activite`, `contexte_web` | string | Résumé et extraits de la recherche web, réutilisés pour la rédaction |
 | `classifie_par` | string | Version du modèle ayant classé la ligne |
-| `message_brouillon` | string | Message rédigé par le LLM |
-| `statut` | string | `a_traiter` / `brouillon` / `valide` / `envoyee` |
+| `message_initial` | string | Message tel que rédigé par la première IA |
+| `message_brouillon` | string | Message après relecture (celui qui sera envoyé) |
+| `relecture_verdict`, `relecture_notes` | string | Verdict de la seconde IA et problèmes relevés |
+| `statut` | string | `a_traiter` / `brouillon` / `a_revoir` / `valide` / `envoyee` |
 | `application_id` | string | Identifiant renvoyé par l'API après envoi |
 | `date_collecte` | date | Date d'insertion |
 
@@ -82,4 +88,4 @@ Le détail des étapes, des problèmes rencontrés et des choix faits est dans [
 
 ## Stack
 
-n8n (data tables, nœuds natifs, chaînes LLM) · API La bonne alternance · Tavily · OpenRouter (Jev de TypeSafe pour la classification, Claude Haiku 5.5 pour la rédaction) · Google Drive
+n8n (data tables, nœuds natifs, chaînes LLM) · API La bonne alternance · Tavily · OpenRouter (Jev de TypeSafe pour la classification, Claude Haiku 5.5 pour la rédaction, DeepSeek V4.1 Flash pour la relecture) · Google Drive

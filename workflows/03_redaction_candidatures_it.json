@@ -1,0 +1,666 @@
+{
+  "name": "LBA – Rédaction candidatures IT (toutes branches)",
+  "nodes": [
+    {
+      "name": "Lancer",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Entreprises à traiter",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        128
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "condition": "isTrue",
+              "keyName": "candidature_simplifiee"
+            },
+            {
+              "condition": "eq",
+              "keyName": "statut",
+              "keyValue": "a_traiter"
+            },
+            {
+              "condition": "gte",
+              "keyName": "specialite_confiance",
+              "keyValue": "0.7"
+            }
+          ]
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "name": "Branches actives",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        -192
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_BRANCHES",
+          "cachedResultName": "lba_branches"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "actif",
+              "condition": "isTrue"
+            },
+            {
+              "keyName": "cv_drive_id",
+              "condition": "isNotEmpty"
+            }
+          ]
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "name": "CV de la branche (Drive)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        448,
+        -192
+      ],
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.cv_drive_id }}"
+        },
+        "options": {}
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "name": "Texte du CV",
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        -192
+      ],
+      "parameters": {
+        "operation": "pdf",
+        "options": {
+          "joinPages": true
+        }
+      }
+    },
+    {
+      "name": "Branche + CV",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        896,
+        -192
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b1",
+              "name": "specialite",
+              "type": "string",
+              "value": "={{ $('Branches actives').item.json.specialite }}"
+            },
+            {
+              "id": "b2",
+              "name": "cible_alternance",
+              "type": "string",
+              "value": "={{ $('Branches actives').item.json.cible_alternance }}"
+            },
+            {
+              "id": "b3",
+              "name": "consignes",
+              "type": "string",
+              "value": "={{ $('Branches actives').item.json.consignes }}"
+            },
+            {
+              "id": "b4",
+              "name": "cv_texte",
+              "type": "string",
+              "value": "={{ ($json.text || \"\").slice(0, 6000) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Associer la branche",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByFields",
+        "fieldsToMatchString": "specialite",
+        "joinMode": "keepMatches",
+        "outputDataFrom": "both",
+        "options": {}
+      }
+    },
+    {
+      "name": "Limite du lot",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        0
+      ],
+      "parameters": {
+        "maxItems": 2
+      }
+    },
+    {
+      "name": "Rédaction du message",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1568,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "promptType": "define",
+        "hasOutputParser": false,
+        "text": "=BRANCHE\nSpécialité de l'entreprise : {{ $json.specialite }}\nCible d'alternance à annoncer : {{ $json.cible_alternance }}\nConsignes propres à ce domaine : {{ $json.consignes }}\n\nENTREPRISE\nNom : {{ $json.nom }}\nAdresse : {{ $json.adresse }}\nTaille : {{ $json.taille }} salariés\nCode NAF : {{ $json.secteur_naf }}\nRésumé d'activité (recherche web, peut être en anglais) : {{ $json.resume_activite }}\n\nExtraits web bruts (peuvent contenir du bruit ou des homonymes, à utiliser avec prudence) :\n{{ $json.contexte_web }}\n\nCV DU CANDIDAT (version adaptée à ce domaine)\n{{ $json.cv_texte }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Tu rédiges, au nom de Gauthier Faisandaz, le message d'une candidature spontanée en alternance envoyée à une entreprise d'informatique via La bonne alternance (le CV adapté au domaine est joint automatiquement). Le domaine visé, la cible d'alternance et les consignes propres à ce domaine sont fournis dans le message utilisateur, rubrique BRANCHE : respecte-les en priorité.\n\nPARTI PRIS DU MESSAGE\nLe message assume ouvertement qu'il est envoyé par une automatisation que Gauthier a conçue lui-même de bout en bout : collecte des entreprises via l'API La bonne alternance, recherche sur chaque entreprise, tri par spécialité avec un modèle de décision, rédaction personnalisée par IA, relecture par une seconde IA avant envoi. Le marché de l'alternance est difficile en ce moment ; plutôt que d'envoyer des candidatures génériques, il a construit cet outil pour écrire à beaucoup d'entreprises tout en personnalisant chaque message. Ce message est donc lui-même une démonstration de ce qu'il sait faire. Le ton est direct, sincère, avec une pointe d'humour léger, sans s'excuser ni en faire trop. Le fait que le message soit automatisé se dit UNE seule fois. N'écris pas que Gauthier relit lui-même chaque message.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher (Amadeus), Master en UX design.\n- Freelance en automatisation : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur.\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nSTRUCTURE (environ 150 à 220 mots, paragraphes courts)\n1. « Bonjour, » puis présentation en une ou deux phrases (nom, âge, docteur IHM, ex-UX, la cible d'alternance donnée dans BRANCHE).\n2. Le parti pris : ce message est envoyé par une automatisation qu'il a construite, pourquoi, et le lien vers le projet sur GitHub.\n3. Pourquoi cette entreprise : UNE phrase concrète tirée de son activité réelle, reliée à un point de son profil. Si les informations sur l'entreprise sont vagues, contradictoires ou semblent concerner une homonyme, reste général plutôt que d'inventer.\n4. Ce qu'il apporte : 2 ou 3 éléments concrets choisis selon l'entreprise et les consignes de la BRANCHE, et la mention honnête qu'il vient consolider les bases du métier en alternance.\n5. Proposition d'échange simple. Signature : « Gauthier Faisandaz ».\n\nSTYLE\n- Français, vouvoiement, phrases simples et directes, comme dans une lettre écrite par quelqu'un de franc. Pas de formules creuses (« vivement intéressé », « dynamique », « passionné »), pas de flatterie, pas de superlatifs sur l'entreprise.\n- Pas d'objet, pas de puces, pas de gras, pas de crochets ni de champs à compléter, pas d'emoji, pas de formule de politesse avant la signature.\n- Ne mentionne ni école, ni rythme, ni date de démarrage précise.\n- Les extraits web peuvent être en anglais : rédige toujours en français.\n- Réponds uniquement avec le texte du message."
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 3,
+          "delayBetweenBatches": 0
+        }
+      }
+    },
+    {
+      "name": "Claude Haiku 5.5 (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1648,
+        336
+      ],
+      "parameters": {
+        "model": "anthropic/claude-haiku-5.5",
+        "options": {
+          "temperature": 0.6,
+          "maxTokens": 4096,
+          "providerRouting": {
+            "sort": "price"
+          }
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "name": "Message généré ?",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "g1",
+              "leftValue": "={{ $json.text }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Relecture (2e IA)",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        2016,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "promptType": "define",
+        "hasOutputParser": true,
+        "text": "=BRANCHE\nSpécialité de l'entreprise : {{ $('Limite du lot').item.json.specialite }}\nCible d'alternance : {{ $('Limite du lot').item.json.cible_alternance }}\nConsignes propres à ce domaine : {{ $('Limite du lot').item.json.consignes }}\n\nCV DU CANDIDAT\n{{ $('Limite du lot').item.json.cv_texte }}\n\nENTREPRISE\nNom : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\nRésumé d'activité : {{ $('Limite du lot').item.json.resume_activite }}\nExtraits web :\n{{ $('Limite du lot').item.json.contexte_web }}\n\nMESSAGE À RELIRE\n{{ $json.text.trim() }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Tu es le relecteur final d'un message de candidature spontanée en alternance, rédigé par une autre IA au nom de Gauthier Faisandaz et destiné à une entreprise d'informatique. Ce message pourra être envoyé sans relecture humaine : ton rôle est d'éliminer tout ce qui pourrait le décrédibiliser, en touchant le moins possible au texte. Le domaine visé et ses consignes sont fournis dans la rubrique BRANCHE du message utilisateur.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher (Amadeus), Master en UX design.\n- Freelance en automatisation : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur.\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nCE QUE TU VÉRIFIES\n1. Surévaluation ou invention sur Gauthier : compétence présentée comme maîtrisée alors qu'il ne l'a que pratiquée ou approchée, listes de langages ou d'outils, SQL/PostgreSQL/Supabase/Jira cités comme compétences, compétence du domaine visé revendiquée alors que les consignes de la BRANCHE disent qu'il la découvre, expérience absente du profil et du CV, certification présentée comme obtenue.\n2. Faits sur l'entreprise non appuyés par les informations fournies.\n3. Cohérence avec la BRANCHE : la cible d'alternance annoncée correspond bien à celle de la BRANCHE.\n4. Répétitions : le caractère automatisé du message dit plus d'une fois, idées ou formules redites, phrases creuses, flatterie. Affirmation que Gauthier relit lui-même chaque message (à remplacer par une relecture par une seconde IA, ou à supprimer).\n5. Artefacts : crochets ou champs à compléter, markdown (gras, puces, titres), emoji, passages en anglais, double salutation, formule de politesse avant la signature, signature absente ou différente de « Gauthier Faisandaz », lien GitHub du projet absent ou modifié, objet de mail, mention d'une école, d'un rythme ou d'une date de démarrage.\n6. Cohérence générale : le message se lit d'une traite, le ton reste direct et sincère.\n\nCE QUE TU RENDS\n- verdict « ok » : aucun problème, message_final = le message tel quel.\n- verdict « corrige » : problèmes corrigés par des retouches minimales (supprimer, raccourcir, reformuler la phrase fautive), sans réécrire le style ni ajouter de contenu. message_final = message corrigé complet. Chaque problème listé doit être effectivement corrigé dans message_final.\n- verdict « rejete » : problème de fond non corrigeable par retouche (entreprise visiblement mal identifiée, message incohérent ou hors sujet). message_final = chaîne vide.\n- problemes : liste courte, en français, de chaque problème relevé (vide si ok)."
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 3,
+          "delayBetweenBatches": 0
+        }
+      }
+    },
+    {
+      "name": "DeepSeek V4.1 Flash (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        2160,
+        336
+      ],
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 12000
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "name": "Format relecture",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        2288,
+        336
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"verdict\":{\"type\":\"string\",\"enum\":[\"ok\",\"corrige\",\"rejete\"]},\"problemes\":{\"type\":\"array\",\"items\":{\"type\":\"string\"}},\"message_final\":{\"type\":\"string\"}},\"required\":[\"verdict\",\"problemes\",\"message_final\"]}"
+      }
+    },
+    {
+      "name": "Préparer l'enregistrement",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $('Limite du lot').item.json.siret }}"
+            },
+            {
+              "id": "p2",
+              "name": "message_initial",
+              "type": "string",
+              "value": "={{ $('Rédaction du message').item.json.text.trim() }}"
+            },
+            {
+              "id": "p3",
+              "name": "relecture_verdict",
+              "type": "string",
+              "value": "={{ $json.output?.verdict || 'erreur_relecture' }}"
+            },
+            {
+              "id": "p4",
+              "name": "relecture_notes",
+              "type": "string",
+              "value": "={{ ($json.output?.problemes || []).join(' | ') }}"
+            },
+            {
+              "id": "p5",
+              "name": "message_brouillon",
+              "type": "string",
+              "value": "={{ $json.output?.verdict === 'rejete' ? '' : ($json.output?.message_final || $('Rédaction du message').item.json.text).trim() }}"
+            },
+            {
+              "id": "p6",
+              "name": "statut",
+              "type": "string",
+              "value": "={{ ['ok','corrige'].includes($json.output?.verdict) ? 'brouillon' : 'a_revoir' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Enregistrer le brouillon",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "siret",
+              "condition": "eq",
+              "keyValue": "={{ $json.siret }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "message_initial": "={{ $json.message_initial }}",
+            "message_brouillon": "={{ $json.message_brouillon }}",
+            "relecture_verdict": "={{ $json.relecture_verdict }}",
+            "relecture_notes": "={{ $json.relecture_notes }}",
+            "statut": "={{ $json.statut }}"
+          },
+          "schema": [
+            {
+              "id": "message_initial",
+              "displayName": "message_initial",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "message_brouillon",
+              "displayName": "message_brouillon",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "relecture_verdict",
+              "displayName": "relecture_verdict",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "relecture_notes",
+              "displayName": "relecture_notes",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Lancer": {
+      "main": [
+        [
+          {
+            "node": "Entreprises à traiter",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Branches actives",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entreprises à traiter": {
+      "main": [
+        [
+          {
+            "node": "Associer la branche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Branches actives": {
+      "main": [
+        [
+          {
+            "node": "CV de la branche (Drive)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV de la branche (Drive)": {
+      "main": [
+        [
+          {
+            "node": "Texte du CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texte du CV": {
+      "main": [
+        [
+          {
+            "node": "Branche + CV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Branche + CV": {
+      "main": [
+        [
+          {
+            "node": "Associer la branche",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Associer la branche": {
+      "main": [
+        [
+          {
+            "node": "Limite du lot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limite du lot": {
+      "main": [
+        [
+          {
+            "node": "Rédaction du message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Claude Haiku 5.5 (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Rédaction du message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rédaction du message": {
+      "main": [
+        [
+          {
+            "node": "Message généré ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message généré ?": {
+      "main": [
+        [
+          {
+            "node": "Relecture (2e IA)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek V4.1 Flash (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Relecture (2e IA)",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format relecture": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Relecture (2e IA)",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Relecture (2e IA)": {
+      "main": [
+        [
+          {
+            "node": "Préparer l'enregistrement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer l'enregistrement": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le brouillon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
