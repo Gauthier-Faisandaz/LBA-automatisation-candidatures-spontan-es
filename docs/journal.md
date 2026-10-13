@@ -85,6 +85,7 @@ LBA réserve la route d'envoi aux plateformes partenaires et m'a refusé l'habil
 - Les entreprises avec seulement un formulaire sont traitées à la main, avec le message rédigé.
 - Nouveau workflow 05, envoi depuis mon Gmail, en texte brut, CV de la branche en pièce jointe, une candidature par créneau, 20 créneaux par jour en semaine. Un envoi à froid trop rapide depuis une même adresse finit en spam : le rythme est volontairement bas.
 - Validation manuelle tant que la calibration n'est pas terminée : seules les lignes que je passe en `valide` partent.
+- Le CV est enregistré avec le brouillon (`cv_drive_id`) : l'envoi joint exactement le CV qui a servi à rédiger le message, sans repasser par la table des branches.
 
 ### Reste à faire
 - Tester la recherche du contact sur un petit échantillon et mesurer la part d'entreprises joignables par email.

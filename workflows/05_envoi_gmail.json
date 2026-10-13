@@ -70,6 +70,10 @@
               "condition": "isNotEmpty"
             },
             {
+              "keyName": "cv_drive_id",
+              "condition": "isNotEmpty"
+            },
+            {
               "keyName": "date_envoi",
               "condition": "isEmpty"
             }
@@ -83,42 +87,7 @@
       }
     },
     {
-      "name": "Branche de l'entreprise",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        448,
-        96
-      ],
-      "parameters": {
-        "resource": "row",
-        "operation": "get",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "ID_TABLE_LBA_BRANCHES",
-          "cachedResultName": "lba_branches"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "specialite",
-              "condition": "eq",
-              "keyValue": "={{ $json.specialite }}"
-            },
-            {
-              "keyName": "actif",
-              "condition": "isTrue"
-            }
-          ]
-        },
-        "returnAll": false,
-        "limit": 1
-      }
-    },
-    {
-      "name": "CV de la branche (Drive)",
+      "name": "CV joint au brouillon (Drive)",
       "type": "n8n-nodes-base.googleDrive",
       "typeVersion": 3,
       "position": [
@@ -274,29 +243,7 @@
       "main": [
         [
           {
-            "node": "Branche de l'entreprise",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Branche de l'entreprise": {
-      "main": [
-        [
-          {
-            "node": "CV de la branche (Drive)",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "CV de la branche (Drive)": {
-      "main": [
-        [
-          {
-            "node": "Envoyer la candidature",
+            "node": "CV joint au brouillon (Drive)",
             "type": "main",
             "index": 0
           }
@@ -308,6 +255,17 @@
         [
           {
             "node": "Marquer comme envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV joint au brouillon (Drive)": {
+      "main": [
+        [
+          {
+            "node": "Envoyer la candidature",
             "type": "main",
             "index": 0
           }

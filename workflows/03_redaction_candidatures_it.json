@@ -163,6 +163,12 @@
               "name": "cv_texte",
               "type": "string",
               "value": "={{ ($json.text || \"\").slice(0, 6000) }}"
+            },
+            {
+              "id": "b5",
+              "name": "cv_drive_id",
+              "type": "string",
+              "value": "={{ $('Branches actives').item.json.cv_drive_id }}"
             }
           ]
         },
@@ -404,6 +410,12 @@
               "name": "objet_email",
               "type": "string",
               "value": "=Candidature spontanée – alternance {{ ({developpement: \"développement d'applications\", data_ia: 'data / IA', cybersecurite: 'cybersécurité', reseau_infra_support: 'systèmes et réseaux'})[$('Limite du lot').item.json.specialite] || 'informatique' }} 2026-2027 – Gauthier Faisandaz"
+            },
+            {
+              "id": "p8",
+              "name": "cv_drive_id",
+              "type": "string",
+              "value": "={{ $('Limite du lot').item.json.cv_drive_id }}"
             }
           ]
         },
@@ -446,7 +458,8 @@
             "relecture_verdict": "={{ $json.relecture_verdict }}",
             "relecture_notes": "={{ $json.relecture_notes }}",
             "statut": "={{ $json.statut }}",
-            "objet_email": "={{ $json.objet_email }}"
+            "objet_email": "={{ $json.objet_email }}",
+            "cv_drive_id": "={{ $json.cv_drive_id }}"
           },
           "schema": [
             {
@@ -497,6 +510,15 @@
             {
               "id": "objet_email",
               "displayName": "objet_email",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "cv_drive_id",
+              "displayName": "cv_drive_id",
               "required": false,
               "defaultMatch": false,
               "display": true,

@@ -41,7 +41,7 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 | `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
 | `workflows/03_redaction_candidatures_it.json` | Pour chaque entreprise joignable, classée avec une confiance ≥ 0,7, dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout avec un objet d'email. | Opérationnel, en phase de calibration |
 | `workflows/04_recherche_contact.json` | Recherche web (Tavily, contenu brut des pages), puis extraction par **DeepSeek** du site officiel, de l'email de recrutement ou à défaut de contact, et du formulaire. Un email n'est retenu que s'il apparaît tel quel dans les pages : pas d'adresse devinée. | Construit, non testé |
-| `workflows/05_envoi_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, CV de la branche en pièce jointe, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
+| `workflows/05_envoi_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
 
 ### Import
 
@@ -63,6 +63,7 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 | `contact_statut` | string | `email`, `formulaire` ou `sans_contact` |
 | `email_contact`, `formulaire_url`, `contact_source` | string | Adresse retenue, formulaire éventuel, page où l'adresse a été trouvée |
 | `objet_email` | string | Objet de l'email, selon la branche |
+| `cv_drive_id` | string | CV utilisé pour rédiger le message, joint tel quel à l'envoi |
 | `date_envoi`, `gmail_message_id` | date, string | Trace de l'envoi |
 | `lien_lba` | string | Fiche de l'entreprise sur LBA |
 | `site_web`, `telephone` | string | Rarement fournis par LBA ; `site_web` est complété par la classification |
