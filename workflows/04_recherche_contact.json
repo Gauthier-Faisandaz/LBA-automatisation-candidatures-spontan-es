@@ -1,0 +1,539 @@
+{
+  "name": "LBA – Recherche du contact",
+  "nodes": [
+    {
+      "name": "Lancer",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Entreprises classées sans contact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "classifie_par",
+              "condition": "isNotEmpty"
+            },
+            {
+              "keyName": "specialite_confiance",
+              "condition": "gte",
+              "keyValue": "0.7"
+            },
+            {
+              "keyName": "contact_statut",
+              "condition": "isEmpty"
+            }
+          ]
+        },
+        "returnAll": true
+      }
+    },
+    {
+      "name": "Spécialité avec une branche",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        448,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "f1",
+              "leftValue": "={{ ['developpement','data_ia','cybersecurite','reseau_infra_support'].includes($json.specialite) }}",
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Limite du lot",
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        672,
+        0
+      ],
+      "parameters": {
+        "maxItems": 2
+      }
+    },
+    {
+      "name": "Recherche contact",
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        896,
+        0
+      ],
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "parameters": {
+        "resource": "search",
+        "operation": "query",
+        "query": "=\"{{ $json.nom }}\" {{ $json.adresse.split(\" \").slice(-1)[0] }} contact email recrutement",
+        "options": {
+          "search_depth": "advanced",
+          "max_results": 5,
+          "include_raw_content": true,
+          "country": "france",
+          "exclude_domains": [
+            "societe.com",
+            "pappers.fr",
+            "annuaire-entreprises.data.gouv.fr",
+            "entreprises.lagazettefrance.fr",
+            "entreprises.lefigaro.fr",
+            "societeinfo.com",
+            "pple.fr",
+            "mappy.com",
+            "pagesjaunes.fr",
+            "e-pro.fr",
+            "infogreffe.fr",
+            "verif.com",
+            "manageo.fr",
+            "linkedin.com",
+            "indeed.com",
+            "labonnealternance.apprentissage.beta.gouv.fr",
+            "kompass.com",
+            "infonet.fr",
+            "bt-africa.com",
+            "rocketreach.co",
+            "crunchbase.com",
+            "glassdoor.com",
+            "facebook.com",
+            "instagram.com"
+          ]
+        }
+      },
+      "credentials": {
+        "tavilyApi": {
+          "id": "REPLACE_ME",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "name": "Préparer le contexte",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "c1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $('Limite du lot').item.json.siret }}"
+            },
+            {
+              "id": "c2",
+              "name": "texte_brut",
+              "type": "string",
+              "value": "={{ ($json.results || []).map(r => '### ' + r.url + '\\n' + (r.raw_content || r.content || '').slice(0, 5000)).join('\\n\\n') }}"
+            },
+            {
+              "id": "c3",
+              "name": "urls",
+              "type": "string",
+              "value": "={{ ($json.results || []).map(r => r.url).join('\\n') }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Extraire le contact",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        1344,
+        0
+      ],
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "parameters": {
+        "promptType": "define",
+        "hasOutputParser": true,
+        "text": "=ENTREPRISE\nNom : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\n\nPAGES WEB TROUVÉES\n{{ $json.texte_brut }}",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "SystemMessagePromptTemplate",
+              "message": "Tu cherches comment contacter une entreprise française pour lui adresser une candidature spontanée, à partir du contenu de pages web.\n\nRègles strictes :\n- Ne garde que des informations qui concernent CETTE entreprise (même nom, même ville ou même groupe). Ignore les annuaires, les agences web qui ont créé le site, les hébergeurs, les autres entreprises citées.\n- Un email n'est retenu que s'il figure tel quel dans le texte fourni. N'invente jamais d'adresse, ne la reconstruis jamais (pas de prenom.nom@ deviné, pas de contact@ supposé).\n- email_recrutement : adresse dédiée au recrutement ou aux RH de l'entreprise (ex. recrutement@, rh@, jobs@, careers@). Chaîne vide sinon.\n- email_contact : adresse de contact générale de l'entreprise (ex. contact@, info@, bonjour@, accueil@). Chaîne vide sinon. N'y mets jamais l'adresse d'un délégué à la protection des données (dpo@, rgpd@), d'un service de facturation ou d'un support client technique si une adresse plus générale existe.\n- formulaire_url : URL d'une page de contact ou de candidature avec formulaire, sur le site officiel de l'entreprise. Chaîne vide sinon.\n- site_officiel : URL racine du site officiel de l'entreprise (pas un annuaire ni un réseau social). Chaîne vide si incertain.\n- source_url : URL de la page où l'email retenu a été trouvé. Chaîne vide si aucun email."
+            }
+          ]
+        },
+        "batching": {
+          "batchSize": 3,
+          "delayBetweenBatches": 0
+        }
+      }
+    },
+    {
+      "name": "DeepSeek V4.1 Flash (OpenRouter)",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1344,
+        224
+      ],
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash",
+        "options": {
+          "temperature": 0,
+          "maxTokens": 8000
+        }
+      },
+      "credentials": {
+        "openRouterApi": {
+          "id": "REPLACE_ME",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "name": "Format contact",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        1488,
+        224
+      ],
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\"type\":\"object\",\"properties\":{\"site_officiel\":{\"type\":\"string\"},\"email_recrutement\":{\"type\":\"string\"},\"email_contact\":{\"type\":\"string\"},\"formulaire_url\":{\"type\":\"string\"},\"source_url\":{\"type\":\"string\"}},\"required\":[\"site_officiel\",\"email_recrutement\",\"email_contact\",\"formulaire_url\",\"source_url\"]}"
+      }
+    },
+    {
+      "name": "Vérifier et choisir",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1568,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "v1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $('Préparer le contexte').item.json.siret }}"
+            },
+            {
+              "id": "v2",
+              "name": "email_retenu",
+              "type": "string",
+              "value": "={{ [$json.output?.email_recrutement, $json.output?.email_contact].map(e => (e || '').trim().toLowerCase()).find(e => /^[^\\s@]+@[^\\s@]+\\.[a-z]{2,}$/.test(e) && $('Préparer le contexte').item.json.texte_brut.toLowerCase().includes(e)) || '' }}"
+            },
+            {
+              "id": "v3",
+              "name": "formulaire_url",
+              "type": "string",
+              "value": "={{ ($json.output?.formulaire_url || '').startsWith('http') ? $json.output.formulaire_url : '' }}"
+            },
+            {
+              "id": "v4",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ ($json.output?.site_officiel || '').startsWith('http') ? $json.output.site_officiel : '' }}"
+            },
+            {
+              "id": "v5",
+              "name": "contact_source",
+              "type": "string",
+              "value": "={{ $json.output?.source_url || '' }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Statut du contact",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1792,
+        0
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "s1",
+              "name": "contact_statut",
+              "type": "string",
+              "value": "={{ $json.email_retenu ? 'email' : ($json.formulaire_url ? 'formulaire' : 'sans_contact') }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Enregistrer le contact",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2016,
+        0
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "siret",
+              "condition": "eq",
+              "keyValue": "={{ $json.siret }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "contact_statut": "={{ $json.contact_statut }}",
+            "email_contact": "={{ $json.email_retenu }}",
+            "formulaire_url": "={{ $json.formulaire_url }}",
+            "site_web": "={{ $json.site_web }}",
+            "contact_source": "={{ $json.contact_source }}"
+          },
+          "schema": [
+            {
+              "id": "contact_statut",
+              "displayName": "contact_statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "email_contact",
+              "displayName": "email_contact",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "formulaire_url",
+              "displayName": "formulaire_url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "site_web",
+              "displayName": "site_web",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "contact_source",
+              "displayName": "contact_source",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Lancer": {
+      "main": [
+        [
+          {
+            "node": "Entreprises classées sans contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Entreprises classées sans contact": {
+      "main": [
+        [
+          {
+            "node": "Spécialité avec une branche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Spécialité avec une branche": {
+      "main": [
+        [
+          {
+            "node": "Limite du lot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limite du lot": {
+      "main": [
+        [
+          {
+            "node": "Recherche contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recherche contact": {
+      "main": [
+        [
+          {
+            "node": "Préparer le contexte",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Préparer le contexte": {
+      "main": [
+        [
+          {
+            "node": "Extraire le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extraire le contact": {
+      "main": [
+        [
+          {
+            "node": "Vérifier et choisir",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vérifier et choisir": {
+      "main": [
+        [
+          {
+            "node": "Statut du contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statut du contact": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "DeepSeek V4.1 Flash (OpenRouter)": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Extraire le contact",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format contact": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Extraire le contact",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -1,0 +1,322 @@
+{
+  "name": "LBA – Envoi des candidatures (Gmail)",
+  "nodes": [
+    {
+      "name": "20 créneaux en semaine",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0,30 8-17 * * 1-5"
+            }
+          ]
+        },
+        "misfirePolicy": "skip"
+      }
+    },
+    {
+      "name": "Lancer à la main",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        192
+      ],
+      "parameters": {}
+    },
+    {
+      "name": "Prochaine candidature validée",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        96
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "statut",
+              "condition": "eq",
+              "keyValue": "valide"
+            },
+            {
+              "keyName": "contact_statut",
+              "condition": "eq",
+              "keyValue": "email"
+            },
+            {
+              "keyName": "email_contact",
+              "condition": "isNotEmpty"
+            },
+            {
+              "keyName": "message_brouillon",
+              "condition": "isNotEmpty"
+            },
+            {
+              "keyName": "date_envoi",
+              "condition": "isEmpty"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1,
+        "orderBy": true,
+        "orderByColumn": "updatedAt",
+        "orderByDirection": "ASC"
+      }
+    },
+    {
+      "name": "Branche de l'entreprise",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_BRANCHES",
+          "cachedResultName": "lba_branches"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "specialite",
+              "condition": "eq",
+              "keyValue": "={{ $json.specialite }}"
+            },
+            {
+              "keyName": "actif",
+              "condition": "isTrue"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      }
+    },
+    {
+      "name": "CV de la branche (Drive)",
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        672,
+        96
+      ],
+      "parameters": {
+        "resource": "file",
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.cv_drive_id }}"
+        },
+        "options": {
+          "fileName": "CV_Prenom_Nom.pdf"
+        }
+      },
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "REPLACE_ME",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "name": "Envoyer la candidature",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        96
+      ],
+      "parameters": {
+        "resource": "message",
+        "operation": "send",
+        "sendTo": "={{ $('Prochaine candidature validée').item.json.email_contact }}",
+        "subject": "={{ $('Prochaine candidature validée').item.json.objet_email }}",
+        "emailType": "text",
+        "message": "={{ $('Prochaine candidature validée').item.json.message_brouillon }}\nTON_TELEPHONE\nTON_PROFIL_LINKEDIN",
+        "options": {
+          "appendAttribution": false,
+          "senderName": "Prénom Nom",
+          "attachmentsUi": {
+            "attachmentsBinary": [
+              {
+                "property": "data"
+              }
+            ]
+          }
+        }
+      },
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "REPLACE_ME",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "name": "Marquer comme envoyée",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1120,
+        96
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "siret",
+              "condition": "eq",
+              "keyValue": "={{ $('Prochaine candidature validée').item.json.siret }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "statut": "envoyee",
+            "date_envoi": "={{ $now.toISO() }}",
+            "gmail_message_id": "={{ $json.id }}"
+          },
+          "schema": [
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "date_envoi",
+              "displayName": "date_envoi",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "gmail_message_id",
+              "displayName": "gmail_message_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "20 créneaux en semaine": {
+      "main": [
+        [
+          {
+            "node": "Prochaine candidature validée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lancer à la main": {
+      "main": [
+        [
+          {
+            "node": "Prochaine candidature validée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prochaine candidature validée": {
+      "main": [
+        [
+          {
+            "node": "Branche de l'entreprise",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Branche de l'entreprise": {
+      "main": [
+        [
+          {
+            "node": "CV de la branche (Drive)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CV de la branche (Drive)": {
+      "main": [
+        [
+          {
+            "node": "Envoyer la candidature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Envoyer la candidature": {
+      "main": [
+        [
+          {
+            "node": "Marquer comme envoyée",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false
+}

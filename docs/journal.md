@@ -77,10 +77,18 @@ Un seul workflow de rédaction pour toutes les spécialités. Ce qui change d'un
 - Test sur une entreprise data et une entreprise cyber : messages cohérents avec la branche. La relecture a corrigé une surévaluation (« plusieurs années d'UX research » au lieu d'environ un an) et remis en prose une liste à puces.
 - Quand la recherche web est floue (homonymes, résultats sans rapport), le message reste général sur l'entreprise au lieu d'inventer : la consigne fonctionne.
 
+### Refus de l'habilitation LBA : un seul canal, l'email
+LBA réserve la route d'envoi aux plateformes partenaires et m'a refusé l'habilitation `applications:write`. Plutôt que de contourner ce refus en automatisant le bouton de leur site, le pipeline contacte les entreprises directement. LBA ne sert plus qu'à les repérer.
+
+- Conséquence positive : il n'y a plus deux canaux (simplifiée / spontanée) mais un seul, et toutes les entreprises deviennent des cibles, plus seulement celles qui ont un `recipient_id`.
+- Nouveau workflow 04, recherche du contact : Tavily récupère le contenu brut des pages, DeepSeek extrait l'email de recrutement, à défaut l'email de contact général, et le formulaire. Garde-fou : un email n'est retenu que s'il apparaît mot pour mot dans les pages récupérées, ce qui écarte les adresses inventées ou devinées.
+- Les entreprises avec seulement un formulaire sont traitées à la main, avec le message rédigé.
+- Nouveau workflow 05, envoi depuis mon Gmail, en texte brut, CV de la branche en pièce jointe, une candidature par créneau, 20 créneaux par jour en semaine. Un envoi à froid trop rapide depuis une même adresse finit en spam : le rythme est volontairement bas.
+- Validation manuelle tant que la calibration n'est pas terminée : seules les lignes que je passe en `valide` partent.
+
 ### Reste à faire
-- Obtenir l'habilitation `applications:write`, puis construire le workflow d'envoi (traitement des `valide`, 10 envois/min max, enregistrement de `application_id`).
+- Tester la recherche du contact sur un petit échantillon et mesurer la part d'entreprises joignables par email.
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
-- Phase 3 : recherche de contact pour les entreprises sans candidature simplifiée.
 - Décider quoi envoyer aux ESN généralistes et aux intégrateurs ERP/conseil (pas encore de branche).
 - Calibrer la rédaction sur un échantillon par branche avant de lancer en volume.
