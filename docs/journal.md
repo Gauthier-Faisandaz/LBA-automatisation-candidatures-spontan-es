@@ -84,9 +84,14 @@ LBA réserve la route d'envoi aux plateformes partenaires et m'a refusé l'habil
 - Nouveau workflow 03, recherche du contact, placé avant la rédaction (qui devient 04) pour que les numéros suivent l'ordre d'exécution : Tavily récupère le contenu brut des pages, DeepSeek extrait l'email de recrutement, à défaut l'email de contact général, et le formulaire. Garde-fou : un email n'est retenu que s'il apparaît mot pour mot dans les pages récupérées, ce qui écarte les adresses inventées ou devinées.
 - Les entreprises avec seulement un formulaire sont traitées à la main, avec le message rédigé.
 - Nouveau workflow 05, envoi depuis mon Gmail, en texte brut, CV de la branche en pièce jointe, une candidature par créneau, 20 créneaux par jour en semaine. Un envoi à froid trop rapide depuis une même adresse finit en spam : le rythme est volontairement bas.
-- Dédoublonnage à l'envoi : une même entreprise peut apparaître sous plusieurs établissements (SIRET différents) qui partagent la même adresse de recrutement. Avant chaque envoi, le workflow vérifie qu'aucune candidature n'est déjà partie vers cette adresse ; sinon la ligne passe en `doublon_email`.
 - Validation manuelle tant que la calibration n'est pas terminée : seules les lignes que je passe en `valide` partent.
 - Le CV est enregistré avec le brouillon (`cv_drive_id`) : l'envoi joint exactement le CV qui a servi à rédiger le message, sans repasser par la table des branches.
+
+### Dédoublonnage en amont
+Une même entreprise remonte souvent sous plusieurs établissements (un SIRET par site) qui partagent la même adresse de recrutement. Un premier contrôle placé à l'envoi évitait le doublon, mais trop tard : les lettres étaient déjà rédigées et des créneaux d'envoi perdus. Le dédoublonnage se fait donc le plus tôt possible :
+- à la collecte, un seul établissement par SIREN (le premier rencontré, donc le plus proche) ; le contrôle en table compare le début du SIRET, ce qui couvre aussi les lignes déjà présentes ;
+- à la recherche du contact, les entreprises sont enregistrées une à une ; si l'adresse trouvée est déjà attribuée à une autre ligne (filiale d'un même groupe, SIREN différent), la ligne passe en `doublon` et n'est jamais rédigée.
+Les lignes en double sont marquées plutôt que supprimées : supprimées, elles reviendraient à la collecte suivante.
 
 ### Reste à faire
 - Tester la recherche du contact sur un petit échantillon et mesurer la part d'entreprises joignables par email.

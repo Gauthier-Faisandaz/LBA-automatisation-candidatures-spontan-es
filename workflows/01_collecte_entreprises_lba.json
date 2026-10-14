@@ -136,6 +136,12 @@
               "value": "={{ $json.workplace.siret }}"
             },
             {
+              "id": "a15",
+              "name": "siren",
+              "type": "string",
+              "value": "={{ ($json.workplace.siret || '').slice(0, 9) }}"
+            },
+            {
               "id": "a2",
               "name": "nom",
               "type": "string",
@@ -229,11 +235,11 @@
     {
       "parameters": {
         "compare": "selectedFields",
-        "fieldsToCompare": "siret",
+        "fieldsToCompare": "siren",
         "options": {}
       },
       "id": "093c74f6-ba4b-4992-88cf-59d7844d3ccc",
-      "name": "Dédoublonnage SIRET",
+      "name": "Un établissement par entreprise (SIREN)",
       "type": "n8n-nodes-base.removeDuplicates",
       "typeVersion": 2,
       "position": [
@@ -255,13 +261,14 @@
           "conditions": [
             {
               "keyName": "siret",
-              "keyValue": "={{ $json.siret }}"
+              "condition": "like",
+              "keyValue": "={{ $json.siren }}%"
             }
           ]
         }
       },
       "id": "7169572c-03f1-4c8b-b603-c1130e21c75c",
-      "name": "Nouveau dans la table ?",
+      "name": "Entreprise absente de la table ?",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
@@ -353,25 +360,25 @@
       "main": [
         [
           {
-            "node": "Dédoublonnage SIRET",
+            "node": "Un établissement par entreprise (SIREN)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Dédoublonnage SIRET": {
+    "Un établissement par entreprise (SIREN)": {
       "main": [
         [
           {
-            "node": "Nouveau dans la table ?",
+            "node": "Entreprise absente de la table ?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Nouveau dans la table ?": {
+    "Entreprise absente de la table ?": {
       "main": [
         [
           {

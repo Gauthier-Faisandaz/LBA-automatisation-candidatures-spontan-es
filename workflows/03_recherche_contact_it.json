@@ -326,7 +326,7 @@
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2016,
+        2912,
         0
       ],
       "parameters": {
@@ -403,6 +403,134 @@
               "display": true,
               "type": "string",
               "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Une entreprise à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        2016,
+        0
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "name": "Email trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2240,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ $json.email_retenu }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Adresse pas encore prise",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        -112
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email_contact",
+              "condition": "eq",
+              "keyValue": "={{ $json.email_retenu }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Adresse déjà prise",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        2464,
+        112
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email_contact",
+              "condition": "eq",
+              "keyValue": "={{ $json.email_retenu }}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Marquer comme doublon",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2688,
+        112
+      ],
+      "parameters": {
+        "mode": "manual",
+        "includeOtherFields": true,
+        "assignments": {
+          "assignments": [
+            {
+              "id": "d1",
+              "name": "contact_statut",
+              "type": "string",
+              "value": "doublon"
             }
           ]
         },
@@ -503,7 +631,7 @@
       "main": [
         [
           {
-            "node": "Enregistrer le contact",
+            "node": "Une entreprise à la fois",
             "type": "main",
             "index": 0
           }
@@ -527,6 +655,85 @@
           {
             "node": "Extraire le contact",
             "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une entreprise à la fois": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Email trouvé ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email trouvé ?": {
+      "main": [
+        [
+          {
+            "node": "Adresse pas encore prise",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Adresse déjà prise",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Enregistrer le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adresse pas encore prise": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adresse déjà prise": {
+      "main": [
+        [
+          {
+            "node": "Marquer comme doublon",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Marquer comme doublon": {
+      "main": [
+        [
+          {
+            "node": "Enregistrer le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Enregistrer le contact": {
+      "main": [
+        [
+          {
+            "node": "Une entreprise à la fois",
+            "type": "main",
             "index": 0
           }
         ]

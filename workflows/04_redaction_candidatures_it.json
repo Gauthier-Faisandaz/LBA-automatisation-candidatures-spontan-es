@@ -49,6 +49,11 @@
               "keyName": "contact_statut",
               "condition": "neq",
               "keyValue": "sans_contact"
+            },
+            {
+              "keyName": "contact_statut",
+              "condition": "neq",
+              "keyValue": "doublon"
             }
           ]
         },
