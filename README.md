@@ -18,9 +18,9 @@ flowchart LR
     T --> C[02 · Classification IT<br/>Tavily + Jev]
     C --> T
     R[(lba_branches<br/>CV + consignes<br/>par spécialité)] --> D
-    T --> D[03 · Rédaction<br/>Claude Haiku]
+    T --> D[04 · Rédaction<br/>Claude Haiku]
     D --> RL[Relecture<br/>DeepSeek]
-    T --> K[04 · Recherche du contact<br/>Tavily + DeepSeek]
+    T --> K[03 · Recherche du contact<br/>Tavily + DeepSeek]
     K --> T
     RL --> T
     T --> V{Validation<br/>manuelle}
@@ -28,7 +28,7 @@ flowchart LR
     E --> T
 ```
 
-Ordre d'exécution : 01 → 02 → 04 → 03 → validation → 05. La rédaction ne traite que les entreprises dont un contact a été trouvé.
+Ordre d'exécution : 01 → 02 → 03 → 04 → validation → 05 (les numéros suivent l'ordre d'exécution). La rédaction ne traite que les entreprises dont un contact a été trouvé.
 
 Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `sans_contact`) et `statut` : `a_traiter` → `brouillon` (ou `a_revoir` si la relecture échoue ou rejette le message) → `valide` → `envoyee`. Les entreprises qui n'ont qu'un formulaire de contact sont traitées à la main, avec le message rédigé.
 
@@ -36,19 +36,19 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 
 | Fichier | Rôle | État |
 |---|---|---|
-| `workflows/00_configuration_branches.json` | Point d'édition des branches : pour chaque spécialité (développement, data/IA, cybersécurité, systèmes et réseaux), le CV à joindre, la cible d'alternance, les consignes de rédaction et un interrupteur `actif`. Écrit dans la table `lba_branches`. | Opérationnel |
-| `workflows/01_collecte_entreprises.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée » (sans offre publiée), dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
-| `workflows/02_classification_specialite_it.json` | Pour les entreprises informatiques : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
-| `workflows/03_redaction_candidatures_it.json` | Pour chaque entreprise joignable, classée avec une confiance ≥ 0,7, dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout avec un objet d'email. | Opérationnel, en phase de calibration |
-| `workflows/04_recherche_contact.json` | Recherche web (Tavily, contenu brut des pages), puis extraction par **DeepSeek** du site officiel, de l'email de recrutement ou à défaut de contact, et du formulaire. Un email n'est retenu que s'il apparaît tel quel dans les pages : pas d'adresse devinée. | Construit, non testé |
-| `workflows/05_envoi_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
+| `workflows/00_configuration_branches_it.json` | Point d'édition des branches : pour chaque spécialité (développement, data/IA, cybersécurité, systèmes et réseaux), le CV à joindre, la cible d'alternance, les consignes de rédaction et un interrupteur `actif`. Écrit dans la table `lba_branches`. | Opérationnel |
+| `workflows/01_collecte_entreprises_lba.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée » (sans offre publiée), dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
+| `workflows/02_classification_it.json` | Pour les entreprises informatiques : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
+| `workflows/03_recherche_contact_it.json` | Recherche web (Tavily, contenu brut des pages), puis extraction par **DeepSeek** du site officiel, de l'email de recrutement ou à défaut de contact, et du formulaire. Un email n'est retenu que s'il apparaît tel quel dans les pages : pas d'adresse devinée. | Construit, non testé |
+| `workflows/04_redaction_candidatures_it.json` | Pour chaque entreprise joignable, classée avec une confiance ≥ 0,7, dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout avec un objet d'email. | Opérationnel, en phase de calibration |
+| `workflows/05_envoi_candidatures_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
 
 ### Import
 
 1. Importer les JSON dans n8n.
 2. Remplacer les valeurs `REPLACE_ME` (credentials), `ID_TABLE_LBA_ENTREPRISES`, `ID_TABLE_LBA_BRANCHES`, `ID_TABLE_CODES_ROME` et les `ID_CV_…_SUR_GOOGLE_DRIVE`.
-3. Lancer `00_configuration_branches` une fois pour remplir `lba_branches`.
-4. Dans `05_envoi_gmail`, renseigner nom, téléphone et profil en signature.
+3. Lancer `00_Configuration_branches_IT` une fois pour remplir `lba_branches`.
+4. Dans `05_Envoi_candidatures_Gmail`, renseigner nom, téléphone et profil en signature.
 5. Créer les credentials : clé API LBA (Header Auth `Authorization: Bearer …`), Tavily, OpenRouter, Google Drive.
 
 ## Table `lba_entreprises`

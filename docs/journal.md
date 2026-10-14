@@ -32,7 +32,7 @@ Besoin : je n'envoie pas le même CV à une ESN réseau, une boîte de cyberséc
 - Corrections : délai de 15 s entre deux appels, retry, et `onError: continueRegularOutput` suivi d'un filtre, pour enregistrer les entreprises classées même si certaines échouent. Avant ça, une seule erreur faisait perdre tout le lot.
 - Qualité observée sur le premier lot : classifications cohérentes, sites officiels correctement identifiés.
 
-### Workflow 03 — Rédaction
+### Workflow 04 — Rédaction
 - Le CV est lu directement depuis Google Drive puis converti en texte : le prompt s'appuie sur le vrai CV, pas sur un résumé figé.
 - Contraintes du prompt : 120–180 mots, 3 paragraphes, rien d'inventé, pas d'école ni de date si elles ne figurent pas dans le CV.
 - Premier essai tronqué en plein milieu : Gemini 3 compte ses tokens de réflexion dans la limite de sortie. Passage de 1 024 à 4 096 tokens.
@@ -81,7 +81,7 @@ Un seul workflow de rédaction pour toutes les spécialités. Ce qui change d'un
 LBA réserve la route d'envoi aux plateformes partenaires et m'a refusé l'habilitation `applications:write`. Plutôt que de contourner ce refus en automatisant le bouton de leur site, le pipeline contacte les entreprises directement. LBA ne sert plus qu'à les repérer.
 
 - Conséquence positive : il n'y a plus deux canaux (simplifiée / spontanée) mais un seul, et toutes les entreprises deviennent des cibles, plus seulement celles qui ont un `recipient_id`.
-- Nouveau workflow 04, recherche du contact : Tavily récupère le contenu brut des pages, DeepSeek extrait l'email de recrutement, à défaut l'email de contact général, et le formulaire. Garde-fou : un email n'est retenu que s'il apparaît mot pour mot dans les pages récupérées, ce qui écarte les adresses inventées ou devinées.
+- Nouveau workflow 03, recherche du contact, placé avant la rédaction (qui devient 04) pour que les numéros suivent l'ordre d'exécution : Tavily récupère le contenu brut des pages, DeepSeek extrait l'email de recrutement, à défaut l'email de contact général, et le formulaire. Garde-fou : un email n'est retenu que s'il apparaît mot pour mot dans les pages récupérées, ce qui écarte les adresses inventées ou devinées.
 - Les entreprises avec seulement un formulaire sont traitées à la main, avec le message rédigé.
 - Nouveau workflow 05, envoi depuis mon Gmail, en texte brut, CV de la branche en pièce jointe, une candidature par créneau, 20 créneaux par jour en semaine. Un envoi à froid trop rapide depuis une même adresse finit en spam : le rythme est volontairement bas.
 - Validation manuelle tant que la calibration n'est pas terminée : seules les lignes que je passe en `valide` partent.

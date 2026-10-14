@@ -1,5 +1,5 @@
 {
-  "name": "LBA – Configuration des branches",
+  "name": "00_Configuration_branches_IT",
   "nodes": [
     {
       "name": "Lancer",
