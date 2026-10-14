@@ -41,7 +41,7 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 | `workflows/02_classification_it.json` | Pour les entreprises informatiques : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
 | `workflows/03_recherche_contact_it.json` | Recherche web (Tavily, contenu brut des pages), puis extraction par **DeepSeek** du site officiel, de l'email de recrutement ou à défaut de contact, et du formulaire. Un email n'est retenu que s'il apparaît tel quel dans les pages : pas d'adresse devinée. | Construit, non testé |
 | `workflows/04_redaction_candidatures_it.json` | Pour chaque entreprise joignable, classée avec une confiance ≥ 0,7, dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout avec un objet d'email. | Opérationnel, en phase de calibration |
-| `workflows/05_envoi_candidatures_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
+| `workflows/05_envoi_candidatures_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. Une adresse qui a déjà reçu une candidature n'en reçoit pas une seconde (cas des groupes à plusieurs établissements) : la ligne passe en `doublon_email`. | Construit, inactif |
 
 ### Import
 
@@ -74,7 +74,7 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 | `message_initial` | string | Message tel que rédigé par la première IA |
 | `message_brouillon` | string | Message après relecture (celui qui sera envoyé) |
 | `relecture_verdict`, `relecture_notes` | string | Verdict de la seconde IA et problèmes relevés |
-| `statut` | string | `a_traiter` / `brouillon` / `a_revoir` / `valide` / `envoyee` |
+| `statut` | string | `a_traiter` / `brouillon` / `a_revoir` / `valide` / `envoyee` / `doublon_email` |
 | `application_id` | string | Identifiant renvoyé par l'API après envoi |
 | `date_collecte` | date | Date d'insertion |
 

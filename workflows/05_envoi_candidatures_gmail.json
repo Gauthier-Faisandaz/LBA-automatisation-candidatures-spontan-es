@@ -214,6 +214,120 @@
         },
         "options": {}
       }
+    },
+    {
+      "name": "Adresse pas encore utilisée",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        96
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowNotExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email_contact",
+              "condition": "eq",
+              "keyValue": "={{ $json.email_contact }}"
+            },
+            {
+              "keyName": "date_envoi",
+              "condition": "isNotEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Adresse déjà utilisée",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        448,
+        288
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "rowExists",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email_contact",
+              "condition": "eq",
+              "keyValue": "={{ $json.email_contact }}"
+            },
+            {
+              "keyName": "date_envoi",
+              "condition": "isNotEmpty"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Marquer comme doublon",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        672,
+        288
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "update",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "siret",
+              "condition": "eq",
+              "keyValue": "={{ $('Prochaine candidature validée').item.json.siret }}"
+            }
+          ]
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "matchingColumns": [],
+          "value": {
+            "statut": "doublon_email"
+          },
+          "schema": [
+            {
+              "id": "statut",
+              "displayName": "statut",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -243,7 +357,12 @@
       "main": [
         [
           {
-            "node": "CV joint au brouillon (Drive)",
+            "node": "Adresse pas encore utilisée",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Adresse déjà utilisée",
             "type": "main",
             "index": 0
           }
@@ -266,6 +385,28 @@
         [
           {
             "node": "Envoyer la candidature",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adresse pas encore utilisée": {
+      "main": [
+        [
+          {
+            "node": "CV joint au brouillon (Drive)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adresse déjà utilisée": {
+      "main": [
+        [
+          {
+            "node": "Marquer comme doublon",
             "type": "main",
             "index": 0
           }
