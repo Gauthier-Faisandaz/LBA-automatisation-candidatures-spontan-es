@@ -103,8 +103,17 @@ Premier test réel de la recherche du contact : 0 adresse sur 2 entreprises. Sur
 - Piège rencontré : l'objet `URL` de JavaScript n'existe pas dans les expressions n8n. Le domaine du site n'était jamais reconnu, et la bonne adresse, pourtant trouvée, était écartée. Les URL sont maintenant découpées par expressions régulières.
 - Résultat sur le même échantillon : l'adresse et le formulaire de la première entreprise sont trouvés sur son site, une deuxième entreprise est joignable par email. Celle qui n'a pas de site reste sans contact.
 
+### Recherche du contact : premier passage complet
+Sur les 28 entreprises IT retenues, le premier passage donnait 15 emails, 3 formulaires et 10 sans contact. En relisant les adresses une par une, plusieurs n'étaient pas envoyables : une messagerie gratuite sans lien avec une entreprise de 50 salariés, l'adresse d'une autre société, des annuaires pris pour le site officiel, un site sans rapport retenu parce que son nom commençait comme celui de l'entreprise.
+
+- Le site officiel n'est accepté que si son domaine reprend le nom de l'entreprise, y compris quand c'est l'IA qui le propose. Un mot du nom ne compte qu'en début ou en fin de domaine ; une partie du nom doit en couvrir au moins 60 %. Les annuaires sont exclus.
+- Les sous-domaines et autres extensions d'un même nom comptent comme le même domaine (`fr.exemple.com` pour `france.exemple.com`, `.com` pour `.fr`). Une adresse RH restait sinon ignorée.
+- Messagerie gratuite seulement si elle est affichée sur le site d'une petite structure (moins de 10 salariés). Adresses de service écartées : DPO, support, presse, accessibilité, facturation, achats.
+- Un formulaire passe avant l'adresse d'une autre société du groupe ; les formulaires des pages légales (protection des données, cookies) sont ignorés.
+- Nouvelle étape : une recherche Tavily limitée au domaine officiel. Elle rattrape les sites dont le contenu est généré en JavaScript et repère les portails carrières (enregistrés comme formulaires, à remplir à la main).
+- Résultat : 15 emails, 7 formulaires ou portails, 6 sans contact. Les 6 restants n'ont pas de site identifiable ou n'affichent qu'une adresse de DPO.
+
 ### Reste à faire
-- Mesurer la part d'entreprises joignables par email sur un lot plus large.
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Décider quoi envoyer aux ESN généralistes et aux intégrateurs ERP/conseil (pas encore de branche).

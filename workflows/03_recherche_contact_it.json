@@ -2,7 +2,7 @@
   "name": "03_Recherche_contact_IT",
   "nodes": [
     {
-      "name": "Sticky Note 6675c682",
+      "name": "Sticky Note 619b8529",
       "type": "n8n-nodes-base.stickyNote",
       "typeVersion": 1,
       "position": [
@@ -10,7 +10,7 @@
         -360
       ],
       "parameters": {
-        "content": "## 03 – Recherche du contact (IT)\n1. Recherche web générale (Tavily) puis extraction par DeepSeek, avec vérification que l'email figure tel quel dans les pages.\n2. Site officiel : celui donné par l'IA, sinon une URL dont le domaine contient le nom de l'entreprise, sinon une 2e recherche dédiée.\n3. Exploration directe du site (accueil, contact, mentions légales, recrutement, liens repérés) : emails en clair, masqués (Cloudflare, [at], &#64;) et formulaires.\n4. Choix : recrutement@ > contact@ du domaine > autre adresse du domaine > messagerie gratuite affichée sur le site ; jamais hébergeur, agence web, DPO ou no-reply.\n5. Dédoublonnage (adresse déjà prise par une autre entreprise) puis enregistrement.",
+        "content": "## 03 – Recherche du contact (IT)\n1. Recherche web générale (Tavily) puis extraction par DeepSeek, avec vérification que l'email figure tel quel dans les pages.\n2. Site officiel : seulement un domaine qui reprend le nom de l'entreprise (annuaires exclus) ; sinon une 2e recherche dédiée.\n3. Exploration directe du site (accueil, contact, mentions légales, recrutement, liens repérés) : emails en clair, masqués (Cloudflare, [at], &#64;) et formulaires ; puis recherche Tavily limitée au site pour les pages générées en JavaScript et les portails carrières.\n4. Choix : recrutement@ > contact@ du domaine (sous-domaines et autres extensions compris) > autre adresse du domaine > messagerie gratuite affichée sur le site d'une petite structure > formulaire > adresse d'une autre société du groupe ; jamais DPO, no-reply, support, presse, accessibilité, facturation ni formulaire d'une page légale.\n5. Dédoublonnage (adresse déjà prise par une autre entreprise) puis enregistrement.",
         "color": 4,
         "width": 760,
         "height": 300
@@ -159,16 +159,16 @@
           ]
         }
       },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
       "credentials": {
         "tavilyApi": {
           "id": "REPLACE_ME",
           "name": "Tavily account"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "name": "Préparer le contexte",
@@ -310,7 +310,7 @@
               "id": "r5",
               "name": "site_web",
               "type": "string",
-              "value": "={{ ($json.output?.site_officiel || '').startsWith('http') ? $json.output.site_officiel : ((() => { const e = $('Une entreprise à la fois').first().json; const slug = (e.nom || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const urls = $('Préparer le contexte').first().json.urls || []; for (const u of urls) { try { const h = ((String(u).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); if (!h) continue; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); if (base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || slug.includes(base))) || mots.some(m => base.includes(m)))) return (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; } catch (err) {} } return ''; })() || (($('Une entreprise à la fois').first().json.site_web || '').startsWith('http') ? $('Une entreprise à la fois').first().json.site_web : '')) }}"
+              "value": "={{ (() => { const e = $('Une entreprise à la fois').first().json; const annuaire = /(cataloxy|adgencia|infobel|kompass|societe\\.com|pappers|pagesjaunes|annuaire|verif\\.com|infonet|manageo|bt-africa|threebestrated|yelp|waze|prospeo|batiproduits|fusacq|techtarget|europages|starofservice|play\\.google|linkedin|facebook)/i; const hoteDe = u => ((String(u || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const origine = u => (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; const slug = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const ressemble = u => { const h = hoteDe(u); if (!h) return false; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); return base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || (slug.includes(base) && base.length >= 0.6 * slug.length))) || mots.some(m => base.startsWith(m) || base.endsWith(m))); }; const ok = u => /^https?:\\/\\//i.test(String(u || '')) && !annuaire.test(u) && ressemble(u); const ia = $json.output?.site_officiel || ''; if (ok(ia)) return ia; const urls = [...($('Préparer le contexte').first().json.urls || []), ...[...String(e.contexte_web || '').matchAll(/https?:\\/\\/[^\\s|]+/g)].map(m => m[0])]; const trouve = urls.find(ok); if (trouve) return origine(trouve); return ok(e.site_web) ? e.site_web : ''; })() }}"
             }
           ]
         },
@@ -416,16 +416,16 @@
           ]
         }
       },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
       "credentials": {
         "tavilyApi": {
           "id": "REPLACE_ME",
           "name": "Tavily account"
         }
-      },
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput"
+      }
     },
     {
       "name": "Site trouvé",
@@ -443,7 +443,7 @@
               "id": "t1",
               "name": "site_web",
               "type": "string",
-              "value": "={{ (() => { const e = $('Une entreprise à la fois').first().json; const slug = (e.nom || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const urls = ($json.results || []).map(r => r.url); for (const u of urls) { try { const h = ((String(u).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); if (!h) continue; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); if (base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || slug.includes(base))) || mots.some(m => base.includes(m)))) return (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; } catch (err) {} } return ''; })() }}"
+              "value": "={{ (() => { const e = $('Une entreprise à la fois').first().json; const slug = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const urls = ($json.results || []).map(r => r.url).filter(u => !/(cataloxy|adgencia|infobel|kompass|societe\\.com|pappers|pagesjaunes|annuaire|verif\\.com|infonet|manageo|bt-africa|threebestrated|yelp|waze|prospeo|batiproduits|fusacq|techtarget|europages|starofservice|play\\.google|linkedin|facebook)/i.test(u)); for (const u of urls) { try { const h = ((String(u).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); if (!h) continue; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); if (base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || (slug.includes(base) && base.length >= 0.6 * slug.length))) || mots.some(m => base.startsWith(m) || base.endsWith(m)))) return (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; } catch (err) {} } return ''; })() }}"
             }
           ]
         },
@@ -498,7 +498,7 @@
               "id": "k0",
               "name": "choix",
               "type": "object",
-              "value": "={{ (() => { const r = $('Résultat de la recherche').first().json; const pages = Array.isArray($json.pages) ? $json.pages : []; const site = pages.length ? (pages[0].site || '') : ''; const hote = ((String(site).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const memeDomaine = d => !!hote && (d === hote || d.endsWith('.' + hote) || hote.endsWith('.' + d)); const gratuit = /^(gmail|googlemail|outlook|hotmail|live|yahoo|orange|wanadoo|free|laposte|sfr|neuf|bbox|icloud|gmx)\\./; const exclus = /^(no-?reply|ne-?pas-?repondre|dpo|rgpd|gdpr|privacy|abuse|postmaster|webmaster|hostmaster|facturation|billing|compta|comptabilite|unsubscribe)@/; const recrut = /^(recrutement|recrutements|recrute|rh|drh|jobs?|careers?|carrieres?|emploi|emplois|candidature|candidatures|talents?|hr|alternance|stages?)[@._-]/; const general = /^(contact|contacts|info|infos|information|bonjour|hello|hi|accueil|agence|office|secretariat|direction|commercial|team|equipe)[@._-]/; const note = (e, sur_site) => { const d = e.split('@')[1] || ''; if (exclus.test(e)) return -1; if (memeDomaine(d)) return recrut.test(e) ? 10 : general.test(e) ? 8 : 6; if (gratuit.test(d)) return sur_site ? 5 : 3; return sur_site ? -1 : 2; }; const candidats = []; for (const p of pages) for (const e of (p.emails || [])) candidats.push({ e, url: p.url, n: note(e, true) }); if (r.email_ia) candidats.push({ e: r.email_ia, url: r.source_ia, n: Math.max(note(r.email_ia, false), 2) }); candidats.sort((a, b) => b.n - a.n); const meilleur = candidats.find(c => c.n > 0); const pageForm = pages.filter(p => p.formulaire).sort((a, b) => (/contact|recrut|candidat/i.test(b.url) ? 1 : 0) - (/contact|recrut|candidat/i.test(a.url) ? 1 : 0))[0]; const formulaire = r.formulaire_ia || (pageForm ? pageForm.url : ''); return { email: meilleur ? meilleur.e : '', source: meilleur ? meilleur.url : '', formulaire, site: site || r.site_web || '' }; })() }}"
+              "value": "={{ (() => { const r = $('Résultat de la recherche').first().json; const pages = Array.isArray($json.pages) ? $json.pages : []; const site = pages.length ? (pages[0].site || '') : ''; const hote = ((String(site).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const reg = h => { const p = h.split('.'); const n = /^(co|com|org|gouv|net|asso)\\.[a-z]{2}$/.test(p.slice(-2).join('.')) ? 3 : 2; return p.slice(-n).join('.'); }; const nomDomaine = h => reg(h).split('.')[0]; const memeDomaine = d => !!hote && !!d && (reg(d) === reg(hote) || nomDomaine(d) === nomDomaine(hote)); const ent = $('Une entreprise à la fois').first().json; const petite = /^(0-0|1-2|3-5|6-9)$/.test(String(ent.taille || '')); const mots = (ent.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const slug = (ent.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const ressemble = d => { const b = reg(d).split('.')[0].replace(/[^a-z0-9]/g, ''); return b.length >= 3 && ((slug.length >= 3 && (b.includes(slug) || (slug.includes(b) && b.length >= 0.6 * slug.length))) || mots.some(m => b.startsWith(m) || b.endsWith(m))); }; const gratuit = /^(gmail|googlemail|outlook|hotmail|live|yahoo|orange|wanadoo|free|laposte|sfr|neuf|bbox|icloud|gmx)\\./; const exclus = /^(no-?reply|ne-?pas-?repondre|dpo|dpd|rgpd|gdpr|privacy|abuse|postmaster|webmaster|hostmaster|facturation|factures?[._-]?fournisseurs?|billing|compta|comptabilite|unsubscribe|mediation|achats?|accessibility|accessibilite|legal|juridique|presse|press|security|securite|support|sav)[@._-]/; const recrut = /^(recrutement|recrutements|recrute|rh|drh|jobs?|careers?|carrieres?|emploi|emplois|candidature|candidatures|talents?|hr|alternance|stages?)[@._-]/; const general = /^(contact|contacts|info|infos|information|bonjour|hello|hi|accueil|agence|office|secretariat|direction|commercial|team|equipe)[@._-]/; const note = (e, sur_site) => { const d = e.split('@')[1] || ''; if (exclus.test(e)) return -1; if (memeDomaine(d)) return recrut.test(e) ? 10 : general.test(e) ? 8 : 6; if (gratuit.test(d)) return (sur_site && petite) ? 5 : -1; if (!ressemble(d)) return -1; if (sur_site) return ((recrut.test(e) || general.test(e)) && /\\.(fr|com|eu|net|org|io|tech|info)$/.test(d)) ? 2 : -1; return hote ? 2 : 4; }; const pageLegale = u => /legal|mention|confidential|privacy|cookie|rgpd|gdpr|donnees|protection|cgv|cgu|conditions/i.test(String(u || '')); const candidats = []; for (const p of pages) for (const e of (p.emails || [])) candidats.push({ e, url: p.url, n: note(e, true) }); if (r.email_ia) candidats.push({ e: r.email_ia, url: r.source_ia, n: note(r.email_ia, false) }); candidats.sort((a, b) => b.n - a.n); const pageForm = pages.filter(p => p.formulaire && !pageLegale(p.url)).sort((a, b) => (/contact|recrut|candidat|rejoindre|carri|job/i.test(b.url) ? 1 : 0) - (/contact|recrut|candidat|rejoindre|carri|job/i.test(a.url) ? 1 : 0))[0]; const hoteDe = u => ((String(u || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const formIA = (r.formulaire_ia && !pageLegale(r.formulaire_ia)) ? r.formulaire_ia : ''; const formulaire = (formIA && memeDomaine(hoteDe(formIA))) ? formIA : (pageForm ? pageForm.url : ((formIA && ressemble(hoteDe(formIA))) ? formIA : '')); const meilleur = candidats.find(c => c.n > 2) || (formulaire ? null : candidats.find(c => c.n > 0)); return { email: meilleur ? meilleur.e : '', source: meilleur ? meilleur.url : '', formulaire, site: site || r.site_web || '' }; })() }}"
             },
             {
               "id": "k1",
@@ -961,6 +961,62 @@
         },
         "options": {}
       }
+    },
+    {
+      "name": "Chercher sur le site",
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        4256,
+        420
+      ],
+      "parameters": {
+        "operation": "query",
+        "options": {
+          "include_domains": [
+            "={{ ((String(($json.pages || [])[0]?.site || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, '') }}"
+          ],
+          "include_raw_content": true,
+          "max_results": 5,
+          "search_depth": "basic"
+        },
+        "query": "=\"{{ $('Une entreprise à la fois').first().json.nom }}\" contact email recrutement",
+        "resource": "search"
+      },
+      "notes": "Contenu indexé du site officiel : rattrape les sites dont les pages sont générées en JavaScript.",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "tavilyApi": {
+          "id": "REPLACE_ME",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "name": "Ajouter les résultats du site",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4480,
+        420
+      ],
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "x1",
+              "name": "pages",
+              "type": "array",
+              "value": "={{ (() => { const base = $('Regrouper les pages').first().json.pages || []; const site = base.length ? (base[0].site || '') : ''; const extraits = ($json.results || []).filter(res => { const h = ((String(res.url || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const s = ((String(site).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); return !!s && (h === s || h.endsWith('.' + s) || s.endsWith('.' + h)); }).map(res => { const t = String((res.raw_content || '') + ' ' + (res.content || '')).replace(/&#0*64;|&#x0*40;|%40/gi, '@').replace(/\\s*[\\[\\(\\{]\\s*(at|arobase)\\s*[\\]\\)\\}]\\s*/gi, '@').replace(/\\s+arobase\\s+/gi, '@').replace(/\\s*[\\[\\(\\{]\\s*(dot|point)\\s*[\\]\\)\\}]\\s*/gi, '.'); const emails = [...new Set([...t.matchAll(/[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}/gi)].map(m => m[0].toLowerCase().replace(/\\.+$/, '')))].filter(e => !/\\.(png|jpe?g|gif|svg|webp|css|js|woff2?)$/.test(e) && !/(sentry|wixpress|@example\\.|@exemple\\.|@domain\\.|@domaine\\.|@votre|@your|^nom@|^email@|^votre|^prenom|@2x|@3x)/.test(e)).slice(0, 30); return { site, url: res.url, emails, formulaire: /(^https?:\\/\\/(careers?|carrieres?|recrutement|jobs?|emploi)\\.|\\/(careers?|carrieres?|recrutement|jobs|emploi|nous-rejoindre|rejoignez-nous|rejoindre)([\\/.?#-]|$))/i.test(String(res.url || '')) }; }); return [...base, ...extraits]; })() }}"
+            }
+          ]
+        },
+        "mode": "manual",
+        "options": {}
+      }
     }
   ],
   "connections": {
@@ -1221,17 +1277,6 @@
         ]
       ]
     },
-    "Regrouper les pages": {
-      "main": [
-        [
-          {
-            "node": "Choisir le contact",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "Statut du contact": {
       "main": [
         [
@@ -1293,7 +1338,42 @@
           }
         ]
       ]
+    },
+    "Regrouper les pages": {
+      "main": [
+        [
+          {
+            "node": "Chercher sur le site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher sur le site": {
+      "main": [
+        [
+          {
+            "node": "Ajouter les résultats du site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ajouter les résultats du site": {
+      "main": [
+        [
+          {
+            "node": "Choisir le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "settings": {}
+  "settings": {
+    "executionOrder": "v1"
+  }
 }
