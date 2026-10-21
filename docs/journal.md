@@ -93,8 +93,18 @@ Une même entreprise remonte souvent sous plusieurs établissements (un SIRET pa
 - à la recherche du contact, les entreprises sont enregistrées une à une ; si l'adresse trouvée est déjà attribuée à une autre ligne (filiale d'un même groupe, SIREN différent), la ligne passe en `doublon` et n'est jamais rédigée.
 Les lignes en double sont marquées plutôt que supprimées : supprimées, elles reviendraient à la collecte suivante.
 
+### Recherche du contact : explorer le site lui-même
+Premier test réel de la recherche du contact : 0 adresse sur 2 entreprises. Sur la première, l'adresse figurait pourtant sur son site, mais Tavily n'en renvoyait qu'un extrait tronqué (`bonjour@`). La recherche web seule ne suffit pas : il faut aller lire le site.
+
+- Le site officiel est pris dans la réponse de l'IA, sinon dans les résultats web (domaine qui contient le nom de l'entreprise), sinon par une seconde recherche dédiée.
+- Le workflow télécharge directement la page d'accueil, repère les liens utiles (contact, mentions légales, recrutement, équipe…) et visite une dizaine de pages au plus. Les mentions légales sont une bonne source : la loi impose d'y faire figurer un moyen de contact.
+- Les emails sont repérés en clair, dans les liens `mailto:` et sous leurs formes masquées (protection Cloudflare, `[at]`, `&#64;`). Les formulaires de contact sont détectés.
+- Choix de l'adresse par ordre de préférence : recrutement@ ou rh@ du domaine de l'entreprise, puis contact@ ou bonjour@, puis une autre adresse du domaine, puis une messagerie gratuite affichée sur le site (fréquent dans les petites structures). Jamais l'hébergeur, l'agence qui a fait le site, le DPO ou un no-reply. Toujours aucune adresse devinée.
+- Piège rencontré : l'objet `URL` de JavaScript n'existe pas dans les expressions n8n. Le domaine du site n'était jamais reconnu, et la bonne adresse, pourtant trouvée, était écartée. Les URL sont maintenant découpées par expressions régulières.
+- Résultat sur le même échantillon : l'adresse et le formulaire de la première entreprise sont trouvés sur son site, une deuxième entreprise est joignable par email. Celle qui n'a pas de site reste sans contact.
+
 ### Reste à faire
-- Tester la recherche du contact sur un petit échantillon et mesurer la part d'entreprises joignables par email.
+- Mesurer la part d'entreprises joignables par email sur un lot plus large.
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Décider quoi envoyer aux ESN généralistes et aux intégrateurs ERP/conseil (pas encore de branche).
