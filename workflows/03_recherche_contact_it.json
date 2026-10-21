@@ -2,6 +2,21 @@
   "name": "03_Recherche_contact_IT",
   "nodes": [
     {
+      "name": "Sticky Note 619b8529",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        880,
+        -360
+      ],
+      "parameters": {
+        "content": "## 03 – Recherche du contact (IT)\n1. Recherche web générale (Tavily) puis extraction par DeepSeek, avec vérification que l'email figure tel quel dans les pages.\n2. Site officiel : seulement un domaine qui reprend le nom de l'entreprise (annuaires exclus) ; sinon une 2e recherche dédiée.\n3. Exploration directe du site (accueil, contact, mentions légales, recrutement, liens repérés) : emails en clair, masqués (Cloudflare, [at], &#64;) et formulaires ; puis recherche Tavily limitée au site pour les pages générées en JavaScript et les portails carrières.\n4. Choix : recrutement@ > contact@ du domaine (sous-domaines et autres extensions compris) > autre adresse du domaine > messagerie gratuite affichée sur le site d'une petite structure > formulaire > adresse d'une autre société du groupe ; jamais DPO, no-reply, support, presse, accessibilité, facturation ni formulaire d'une page légale.\n5. Dédoublonnage (adresse déjà prise par une autre entreprise) puis enregistrement.",
+        "color": 4,
+        "width": 760,
+        "height": 300
+      }
+    },
+    {
       "name": "Lancer",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
@@ -43,6 +58,11 @@
             {
               "keyName": "contact_statut",
               "condition": "isEmpty"
+            },
+            {
+              "keyName": "statut",
+              "condition": "neq",
+              "keyValue": "exclu"
             }
           ]
         },
@@ -99,13 +119,9 @@
       "type": "@tavily/n8n-nodes-tavily.tavily",
       "typeVersion": 1,
       "position": [
-        896,
-        0
+        1120,
+        200
       ],
-      "onError": "continueRegularOutput",
-      "retryOnFail": true,
-      "maxTries": 2,
-      "waitBetweenTries": 3000,
       "parameters": {
         "resource": "search",
         "operation": "query",
@@ -143,6 +159,10 @@
           ]
         }
       },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
       "credentials": {
         "tavilyApi": {
           "id": "REPLACE_ME",
@@ -155,8 +175,8 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1120,
-        0
+        1344,
+        200
       ],
       "parameters": {
         "mode": "manual",
@@ -166,7 +186,7 @@
               "id": "c1",
               "name": "siret",
               "type": "string",
-              "value": "={{ $('Limite du lot').item.json.siret }}"
+              "value": "={{ $('Une entreprise à la fois').first().json.siret }}"
             },
             {
               "id": "c2",
@@ -177,8 +197,8 @@
             {
               "id": "c3",
               "name": "urls",
-              "type": "string",
-              "value": "={{ ($json.results || []).map(r => r.url).join('\\n') }}"
+              "type": "array",
+              "value": "={{ ($json.results || []).map(r => r.url) }}"
             }
           ]
         },
@@ -190,17 +210,13 @@
       "type": "@n8n/n8n-nodes-langchain.chainLlm",
       "typeVersion": 1.9,
       "position": [
-        1344,
-        0
+        1568,
+        200
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput",
       "parameters": {
         "promptType": "define",
         "hasOutputParser": true,
-        "text": "=ENTREPRISE\nNom : {{ $('Limite du lot').item.json.nom }}\nAdresse : {{ $('Limite du lot').item.json.adresse }}\nCode NAF : {{ $('Limite du lot').item.json.secteur_naf }}\n\nPAGES WEB TROUVÉES\n{{ $json.texte_brut }}",
+        "text": "=ENTREPRISE\nNom : {{ $('Une entreprise à la fois').first().json.nom }}\nAdresse : {{ $('Une entreprise à la fois').first().json.adresse }}\nCode NAF : {{ $('Une entreprise à la fois').first().json.secteur_naf }}\n\nPAGES WEB TROUVÉES\n{{ $json.texte_brut }}",
         "messages": {
           "messageValues": [
             {
@@ -213,15 +229,19 @@
           "batchSize": 3,
           "delayBetweenBatches": 0
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
     },
     {
       "name": "DeepSeek V4.1 Flash (OpenRouter)",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
       "typeVersion": 1,
       "position": [
-        1344,
-        224
+        1560,
+        520
       ],
       "parameters": {
         "model": "deepseek/deepseek-v4.1-flash",
@@ -242,8 +262,8 @@
       "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
       "typeVersion": 1.3,
       "position": [
-        1488,
-        224
+        1700,
+        520
       ],
       "parameters": {
         "schemaType": "manual",
@@ -251,49 +271,428 @@
       }
     },
     {
-      "name": "Vérifier et choisir",
+      "name": "Résultat de la recherche",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1568,
-        0
+        1792,
+        200
       ],
       "parameters": {
         "mode": "manual",
         "assignments": {
           "assignments": [
             {
-              "id": "v1",
+              "id": "r1",
               "name": "siret",
               "type": "string",
-              "value": "={{ $('Préparer le contexte').item.json.siret }}"
+              "value": "={{ $('Préparer le contexte').first().json.siret }}"
             },
             {
-              "id": "v2",
-              "name": "email_retenu",
+              "id": "r2",
+              "name": "email_ia",
               "type": "string",
-              "value": "={{ [$json.output?.email_recrutement, $json.output?.email_contact].map(e => (e || '').trim().toLowerCase()).find(e => /^[^\\s@]+@[^\\s@]+\\.[a-z]{2,}$/.test(e) && $('Préparer le contexte').item.json.texte_brut.toLowerCase().includes(e)) || '' }}"
+              "value": "={{ [$json.output?.email_recrutement, $json.output?.email_contact].map(e => (e || '').trim().toLowerCase()).find(e => /^[^\\s@]+@[^\\s@]+\\.[a-z]{2,}$/.test(e) && $('Préparer le contexte').first().json.texte_brut.toLowerCase().includes(e)) || '' }}"
             },
             {
-              "id": "v3",
-              "name": "formulaire_url",
+              "id": "r3",
+              "name": "formulaire_ia",
               "type": "string",
               "value": "={{ ($json.output?.formulaire_url || '').startsWith('http') ? $json.output.formulaire_url : '' }}"
             },
             {
-              "id": "v4",
-              "name": "site_web",
-              "type": "string",
-              "value": "={{ ($json.output?.site_officiel || '').startsWith('http') ? $json.output.site_officiel : '' }}"
-            },
-            {
-              "id": "v5",
-              "name": "contact_source",
+              "id": "r4",
+              "name": "source_ia",
               "type": "string",
               "value": "={{ $json.output?.source_url || '' }}"
+            },
+            {
+              "id": "r5",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ (() => { const e = $('Une entreprise à la fois').first().json; const annuaire = /(cataloxy|adgencia|infobel|kompass|societe\\.com|pappers|pagesjaunes|annuaire|verif\\.com|infonet|manageo|bt-africa|threebestrated|yelp|waze|prospeo|batiproduits|fusacq|techtarget|europages|starofservice|play\\.google|linkedin|facebook)/i; const hoteDe = u => ((String(u || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const origine = u => (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; const slug = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const ressemble = u => { const h = hoteDe(u); if (!h) return false; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); return base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || (slug.includes(base) && base.length >= 0.6 * slug.length))) || mots.some(m => base.startsWith(m) || base.endsWith(m))); }; const ok = u => /^https?:\\/\\//i.test(String(u || '')) && !annuaire.test(u) && ressemble(u); const ia = $json.output?.site_officiel || ''; if (ok(ia)) return ia; const urls = [...($('Préparer le contexte').first().json.urls || []), ...[...String(e.contexte_web || '').matchAll(/https?:\\/\\/[^\\s|]+/g)].map(m => m[0])]; const trouve = urls.find(ok); if (trouve) return origine(trouve); return ok(e.site_web) ? e.site_web : ''; })() }}"
             }
           ]
         },
+        "options": {}
+      }
+    },
+    {
+      "name": "Site officiel connu ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2016,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s1",
+              "leftValue": "={{ $json.site_web }}",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              },
+              "rightValue": "http"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Site retenu",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2912,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "u1",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ $json.site_web }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Chercher le site officiel",
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
+      "position": [
+        2240,
+        400
+      ],
+      "parameters": {
+        "resource": "search",
+        "operation": "query",
+        "query": "=\"{{ $('Une entreprise à la fois').first().json.nom }}\" {{ $('Une entreprise à la fois').first().json.adresse.split(' ').slice(-1)[0] }} site officiel",
+        "options": {
+          "search_depth": "basic",
+          "max_results": 8,
+          "country": "france",
+          "exclude_domains": [
+            "societe.com",
+            "pappers.fr",
+            "annuaire-entreprises.data.gouv.fr",
+            "entreprises.lagazettefrance.fr",
+            "entreprises.lefigaro.fr",
+            "societeinfo.com",
+            "pple.fr",
+            "mappy.com",
+            "pagesjaunes.fr",
+            "e-pro.fr",
+            "infogreffe.fr",
+            "verif.com",
+            "manageo.fr",
+            "linkedin.com",
+            "indeed.com",
+            "labonnealternance.apprentissage.beta.gouv.fr",
+            "kompass.com",
+            "infonet.fr",
+            "bt-africa.com",
+            "rocketreach.co",
+            "crunchbase.com",
+            "glassdoor.com",
+            "facebook.com",
+            "instagram.com"
+          ]
+        }
+      },
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput",
+      "credentials": {
+        "tavilyApi": {
+          "id": "REPLACE_ME",
+          "name": "Tavily account"
+        }
+      }
+    },
+    {
+      "name": "Site trouvé",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2464,
+        400
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "t1",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ (() => { const e = $('Une entreprise à la fois').first().json; const slug = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const mots = (e.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const urls = ($json.results || []).map(r => r.url).filter(u => !/(cataloxy|adgencia|infobel|kompass|societe\\.com|pappers|pagesjaunes|annuaire|verif\\.com|infonet|manageo|bt-africa|threebestrated|yelp|waze|prospeo|batiproduits|fusacq|techtarget|europages|starofservice|play\\.google|linkedin|facebook)/i.test(u)); for (const u of urls) { try { const h = ((String(u).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); if (!h) continue; const base = h.split('.').slice(0, -1).join('').replace(/[^a-z0-9]/g, ''); if (base.length >= 3 && ((slug.length >= 3 && (base.includes(slug) || (slug.includes(base) && base.length >= 0.6 * slug.length))) || mots.some(m => base.startsWith(m) || base.endsWith(m)))) return (String(u).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; } catch (err) {} } return ''; })() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Site trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        2688,
+        400
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "s2",
+              "leftValue": "={{ $json.site_web }}",
+              "operator": {
+                "type": "string",
+                "operation": "startsWith"
+              },
+              "rightValue": "http"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Choisir le contact",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4480,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "k0",
+              "name": "choix",
+              "type": "object",
+              "value": "={{ (() => { const r = $('Résultat de la recherche').first().json; const pages = Array.isArray($json.pages) ? $json.pages : []; const site = pages.length ? (pages[0].site || '') : ''; const hote = ((String(site).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const reg = h => { const p = h.split('.'); const n = /^(co|com|org|gouv|net|asso)\\.[a-z]{2}$/.test(p.slice(-2).join('.')) ? 3 : 2; return p.slice(-n).join('.'); }; const nomDomaine = h => reg(h).split('.')[0]; const memeDomaine = d => !!hote && !!d && (reg(d) === reg(hote) || nomDomaine(d) === nomDomaine(hote)); const ent = $('Une entreprise à la fois').first().json; const petite = /^(0-0|1-2|3-5|6-9)$/.test(String(ent.taille || '')); const mots = (ent.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().split(/[^a-z0-9]+/).filter(m => m.length >= 4 && !['france','groupe','group','societe','services','informatique'].includes(m)); const slug = (ent.nom || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\\b(sas|sarl|sasu|eurl|sa|france|groupe|group|societe)\\b/g, '').replace(/[^a-z0-9]/g, ''); const ressemble = d => { const b = reg(d).split('.')[0].replace(/[^a-z0-9]/g, ''); return b.length >= 3 && ((slug.length >= 3 && (b.includes(slug) || (slug.includes(b) && b.length >= 0.6 * slug.length))) || mots.some(m => b.startsWith(m) || b.endsWith(m))); }; const gratuit = /^(gmail|googlemail|outlook|hotmail|live|yahoo|orange|wanadoo|free|laposte|sfr|neuf|bbox|icloud|gmx)\\./; const exclus = /^(no-?reply|ne-?pas-?repondre|dpo|dpd|rgpd|gdpr|privacy|abuse|postmaster|webmaster|hostmaster|facturation|factures?[._-]?fournisseurs?|billing|compta|comptabilite|unsubscribe|mediation|achats?|accessibility|accessibilite|legal|juridique|presse|press|security|securite|support|sav)[@._-]/; const recrut = /^(recrutement|recrutements|recrute|rh|drh|jobs?|careers?|carrieres?|emploi|emplois|candidature|candidatures|talents?|hr|alternance|stages?)[@._-]/; const general = /^(contact|contacts|info|infos|information|bonjour|hello|hi|accueil|agence|office|secretariat|direction|commercial|team|equipe)[@._-]/; const note = (e, sur_site) => { const d = e.split('@')[1] || ''; if (exclus.test(e)) return -1; if (memeDomaine(d)) return recrut.test(e) ? 10 : general.test(e) ? 8 : 6; if (gratuit.test(d)) return (sur_site && petite) ? 5 : -1; if (!ressemble(d)) return -1; if (sur_site) return ((recrut.test(e) || general.test(e)) && /\\.(fr|com|eu|net|org|io|tech|info)$/.test(d)) ? 2 : -1; return hote ? 2 : 4; }; const pageLegale = u => /legal|mention|confidential|privacy|cookie|rgpd|gdpr|donnees|protection|cgv|cgu|conditions/i.test(String(u || '')); const candidats = []; for (const p of pages) for (const e of (p.emails || [])) candidats.push({ e, url: p.url, n: note(e, true) }); if (r.email_ia) candidats.push({ e: r.email_ia, url: r.source_ia, n: note(r.email_ia, false) }); candidats.sort((a, b) => b.n - a.n); const pageForm = pages.filter(p => p.formulaire && !pageLegale(p.url)).sort((a, b) => (/contact|recrut|candidat|rejoindre|carri|job/i.test(b.url) ? 1 : 0) - (/contact|recrut|candidat|rejoindre|carri|job/i.test(a.url) ? 1 : 0))[0]; const hoteDe = u => ((String(u || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const formIA = (r.formulaire_ia && !pageLegale(r.formulaire_ia)) ? r.formulaire_ia : ''; const formulaire = (formIA && memeDomaine(hoteDe(formIA))) ? formIA : (pageForm ? pageForm.url : ((formIA && ressemble(hoteDe(formIA))) ? formIA : '')); const meilleur = candidats.find(c => c.n > 2) || (formulaire ? null : candidats.find(c => c.n > 0)); return { email: meilleur ? meilleur.e : '', source: meilleur ? meilleur.url : '', formulaire, site: site || r.site_web || '' }; })() }}"
+            },
+            {
+              "id": "k1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $('Résultat de la recherche').first().json.siret }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Une entreprise à la fois",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        896,
+        0
+      ],
+      "parameters": {
+        "batchSize": 1,
+        "options": {}
+      }
+    },
+    {
+      "name": "Page d'accueil",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3136,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.site_web }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "fr-FR,fr;q=0.9"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 15000,
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "html"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "name": "Pages à visiter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3360,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "p1",
+              "name": "pages",
+              "type": "array",
+              "value": "={{ (() => { const s0 = $('Site retenu').first().json.site_web; const origine = (String(s0).match(/^https?:\\/\\/[^\\/?#]+/i) || [''])[0]; if (!origine) return [s0]; const hote = origine.replace(/^https?:\\/\\//i, '').replace(/:\\d+$/, '').toLowerCase().replace(/^www\\./, ''); const html = String($json.html || ''); const motsCles = /contact|mention|legal|recrut|carri|emploi|job|rejoind|candidat|propos|about|equipe|team|agence|societe/i; const liens = []; for (const m of html.matchAll(/href\\s*=\\s*[\"']([^\"'#]+)[\"']/gi)) { const brut = m[1].replace(/&amp;/g, '&').trim(); if (/^(mailto|tel|javascript):/i.test(brut)) continue; const abs = /^https?:\\/\\//i.test(brut) ? brut : brut.startsWith('//') ? 'https:' + brut : brut.startsWith('/') ? origine + brut : origine + '/' + brut; const mo = abs.match(/^(https?:\\/\\/([^\\/?#:]+)(?::\\d+)?)([^?#]*)/i); if (mo && mo[2].toLowerCase().replace(/^www\\./, '') === hote && motsCles.test(mo[3])) liens.push(mo[1] + mo[3]); } const parDefaut = ['/contact', '/mentions-legales', '/nous-contacter', '/contactez-nous', '/recrutement'].map(p => origine + p); return [...new Set([origine + '/', ...liens.slice(0, 6), ...parDefaut])].slice(0, 10); })() }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Une page par ligne",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        3584,
+        200
+      ],
+      "parameters": {
+        "fieldToSplitOut": "pages",
+        "options": {
+          "destinationFieldName": "url"
+        }
+      }
+    },
+    {
+      "name": "Télécharger la page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3808,
+        200
+      ],
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "specifyHeaders": "keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "fr-FR,fr;q=0.9"
+            }
+          ]
+        },
+        "options": {
+          "timeout": 10000,
+          "allowUnauthorizedCerts": true,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text",
+              "outputPropertyName": "html"
+            }
+          }
+        }
+      },
+      "onError": "continueRegularOutput"
+    },
+    {
+      "name": "Analyser la page",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        4032,
+        200
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "a0",
+              "name": "site",
+              "type": "string",
+              "value": "={{ $('Site retenu').first().json.site_web }}"
+            },
+            {
+              "id": "a1",
+              "name": "url",
+              "type": "string",
+              "value": "={{ $('Une page par ligne').item.json.url }}"
+            },
+            {
+              "id": "a2",
+              "name": "emails",
+              "type": "array",
+              "value": "={{ (() => { const h = String($json.html || ''); const trouves = []; for (const m of h.matchAll(/(?:data-cfemail=[\"']|email-protection#)([0-9a-f]{6,})/gi)) { const hex = m[1]; const k = parseInt(hex.substr(0, 2), 16); let s = ''; for (let i = 2; i < hex.length; i += 2) s += String.fromCharCode(parseInt(hex.substr(i, 2), 16) ^ k); trouves.push(s); } const t = h.replace(/&#0*64;|&#x0*40;|%40/gi, '@').replace(/&#0*46;|&#x0*2e;/gi, '.').replace(/\\s*[\\[\\(\\{]\\s*(at|arobase)\\s*[\\]\\)\\}]\\s*/gi, '@').replace(/\\s+arobase\\s+/gi, '@').replace(/\\s*[\\[\\(\\{]\\s*(dot|point)\\s*[\\]\\)\\}]\\s*/gi, '.'); for (const m of t.matchAll(/[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}/gi)) trouves.push(m[0]); return [...new Set(trouves.map(e => e.toLowerCase().replace(/^mailto:/, '').replace(/\\.+$/, '')))].filter(e => !/\\.(png|jpe?g|gif|svg|webp|css|js|woff2?)$/.test(e) && !/(sentry|wixpress|@example\\.|@exemple\\.|@domain\\.|@domaine\\.|@votre|@your|^nom@|^email@|^votre|^prenom|@2x|@3x)/.test(e)).slice(0, 30); })() }}"
+            },
+            {
+              "id": "a3",
+              "name": "formulaire",
+              "type": "boolean",
+              "value": "={{ /<form[\\s\\S]*?<textarea/i.test(String($json.html || '')) }}"
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Regrouper les pages",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        4256,
+        200
+      ],
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "pages",
+        "include": "allFields",
         "options": {}
       }
     },
@@ -302,19 +701,48 @@
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        1792,
-        0
+        4704,
+        200
       ],
       "parameters": {
         "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
-              "id": "s1",
+              "id": "z1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $json.siret }}"
+            },
+            {
+              "id": "z2",
+              "name": "email_retenu",
+              "type": "string",
+              "value": "={{ $json.choix.email }}"
+            },
+            {
+              "id": "z3",
+              "name": "formulaire_url",
+              "type": "string",
+              "value": "={{ $json.choix.formulaire }}"
+            },
+            {
+              "id": "z4",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ $json.choix.site }}"
+            },
+            {
+              "id": "z5",
+              "name": "contact_source",
+              "type": "string",
+              "value": "={{ $json.choix.source }}"
+            },
+            {
+              "id": "z6",
               "name": "contact_statut",
               "type": "string",
-              "value": "={{ $json.email_retenu ? 'email' : ($json.formulaire_url ? 'formulaire' : 'sans_contact') }}"
+              "value": "={{ $json.choix.email ? 'email' : ($json.choix.formulaire ? 'formulaire' : 'sans_contact') }}"
             }
           ]
         },
@@ -322,12 +750,137 @@
       }
     },
     {
+      "name": "Email trouvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        4928,
+        200
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "combinator": "and",
+          "conditions": [
+            {
+              "id": "e1",
+              "leftValue": "={{ $json.email_retenu }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty",
+                "singleValue": true
+              },
+              "rightValue": ""
+            }
+          ]
+        },
+        "options": {}
+      }
+    },
+    {
+      "name": "Adresse déjà prise ailleurs ?",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        5152,
+        100
+      ],
+      "parameters": {
+        "resource": "row",
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "ID_TABLE_LBA_ENTREPRISES",
+          "cachedResultName": "lba_entreprises"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "email_contact",
+              "condition": "eq",
+              "keyValue": "={{ $json.email_retenu }}"
+            },
+            {
+              "keyName": "siret",
+              "condition": "neq",
+              "keyValue": "={{ $json.siret }}"
+            }
+          ]
+        },
+        "returnAll": false,
+        "limit": 1
+      },
+      "notes": "Cherche une AUTRE ligne (siret différent) qui a déjà cette adresse. Sort toujours un élément, vide si l'adresse est libre.",
+      "alwaysOutputData": true
+    },
+    {
+      "name": "Statut final du contact",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        5376,
+        100
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f1",
+              "name": "siret",
+              "type": "string",
+              "value": "={{ $('Statut du contact').first().json.siret }}"
+            },
+            {
+              "id": "f2",
+              "name": "email_retenu",
+              "type": "string",
+              "value": "={{ $('Statut du contact').first().json.email_retenu }}"
+            },
+            {
+              "id": "f3",
+              "name": "formulaire_url",
+              "type": "string",
+              "value": "={{ $('Statut du contact').first().json.formulaire_url }}"
+            },
+            {
+              "id": "f4",
+              "name": "site_web",
+              "type": "string",
+              "value": "={{ $('Statut du contact').first().json.site_web }}"
+            },
+            {
+              "id": "f5",
+              "name": "contact_source",
+              "type": "string",
+              "value": "={{ $('Statut du contact').first().json.contact_source }}"
+            },
+            {
+              "id": "f6",
+              "name": "contact_statut",
+              "type": "string",
+              "value": "={{ $json.id ? 'doublon' : $('Statut du contact').first().json.contact_statut }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "executeOnce": true
+    },
+    {
       "name": "Enregistrer le contact",
       "type": "n8n-nodes-base.dataTable",
       "typeVersion": 1.1,
       "position": [
-        2912,
-        0
+        5600,
+        200
       ],
       "parameters": {
         "resource": "row",
@@ -410,130 +963,58 @@
       }
     },
     {
-      "name": "Une entreprise à la fois",
-      "type": "n8n-nodes-base.splitInBatches",
-      "typeVersion": 3,
+      "name": "Chercher sur le site",
+      "type": "@tavily/n8n-nodes-tavily.tavily",
+      "typeVersion": 1,
       "position": [
-        2016,
-        0
+        4256,
+        420
       ],
       "parameters": {
-        "batchSize": 1,
-        "options": {}
-      }
-    },
-    {
-      "name": "Email trouvé ?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2.2,
-      "position": [
-        2240,
-        0
-      ],
-      "parameters": {
-        "conditions": {
-          "options": {
-            "caseSensitive": true,
-            "leftValue": "",
-            "typeValidation": "loose",
-            "version": 2
-          },
-          "combinator": "and",
-          "conditions": [
-            {
-              "id": "e1",
-              "leftValue": "={{ $json.email_retenu }}",
-              "operator": {
-                "type": "string",
-                "operation": "notEmpty",
-                "singleValue": true
-              },
-              "rightValue": ""
-            }
-          ]
+        "operation": "query",
+        "options": {
+          "include_domains": [
+            "={{ ((String(($json.pages || [])[0]?.site || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, '') }}"
+          ],
+          "include_raw_content": true,
+          "max_results": 5,
+          "search_depth": "basic"
         },
-        "options": {}
-      }
-    },
-    {
-      "name": "Adresse pas encore prise",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        2464,
-        -112
-      ],
-      "parameters": {
-        "resource": "row",
-        "operation": "rowNotExists",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "ID_TABLE_LBA_ENTREPRISES",
-          "cachedResultName": "lba_entreprises"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "email_contact",
-              "condition": "eq",
-              "keyValue": "={{ $json.email_retenu }}"
-            }
-          ]
+        "query": "=\"{{ $('Une entreprise à la fois').first().json.nom }}\" contact email recrutement",
+        "resource": "search"
+      },
+      "notes": "Contenu indexé du site officiel : rattrape les sites dont les pages sont générées en JavaScript.",
+      "onError": "continueRegularOutput",
+      "retryOnFail": true,
+      "maxTries": 2,
+      "waitBetweenTries": 3000,
+      "credentials": {
+        "tavilyApi": {
+          "id": "REPLACE_ME",
+          "name": "Tavily account"
         }
       }
     },
     {
-      "name": "Adresse déjà prise",
-      "type": "n8n-nodes-base.dataTable",
-      "typeVersion": 1.1,
-      "position": [
-        2464,
-        112
-      ],
-      "parameters": {
-        "resource": "row",
-        "operation": "rowExists",
-        "dataTableId": {
-          "__rl": true,
-          "mode": "list",
-          "value": "ID_TABLE_LBA_ENTREPRISES",
-          "cachedResultName": "lba_entreprises"
-        },
-        "matchType": "allConditions",
-        "filters": {
-          "conditions": [
-            {
-              "keyName": "email_contact",
-              "condition": "eq",
-              "keyValue": "={{ $json.email_retenu }}"
-            }
-          ]
-        }
-      }
-    },
-    {
-      "name": "Marquer comme doublon",
+      "name": "Ajouter les résultats du site",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.4,
       "position": [
-        2688,
-        112
+        4480,
+        420
       ],
       "parameters": {
-        "mode": "manual",
-        "includeOtherFields": true,
         "assignments": {
           "assignments": [
             {
-              "id": "d1",
-              "name": "contact_statut",
-              "type": "string",
-              "value": "doublon"
+              "id": "x1",
+              "name": "pages",
+              "type": "array",
+              "value": "={{ (() => { const base = $('Regrouper les pages').first().json.pages || []; const site = base.length ? (base[0].site || '') : ''; const extraits = ($json.results || []).filter(res => { const h = ((String(res.url || '').match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); const s = ((String(site).match(/^https?:\\/\\/([^\\/?#:]+)/i) || [])[1] || '').toLowerCase().replace(/^www\\./, ''); return !!s && (h === s || h.endsWith('.' + s) || s.endsWith('.' + h)); }).map(res => { const t = String((res.raw_content || '') + ' ' + (res.content || '')).replace(/&#0*64;|&#x0*40;|%40/gi, '@').replace(/\\s*[\\[\\(\\{]\\s*(at|arobase)\\s*[\\]\\)\\}]\\s*/gi, '@').replace(/\\s+arobase\\s+/gi, '@').replace(/\\s*[\\[\\(\\{]\\s*(dot|point)\\s*[\\]\\)\\}]\\s*/gi, '.'); const emails = [...new Set([...t.matchAll(/[a-z0-9][a-z0-9._%+-]*@[a-z0-9-]+(?:\\.[a-z0-9-]+)*\\.[a-z]{2,}/gi)].map(m => m[0].toLowerCase().replace(/\\.+$/, '')))].filter(e => !/\\.(png|jpe?g|gif|svg|webp|css|js|woff2?)$/.test(e) && !/(sentry|wixpress|@example\\.|@exemple\\.|@domain\\.|@domaine\\.|@votre|@your|^nom@|^email@|^votre|^prenom|@2x|@3x)/.test(e)).slice(0, 30); return { site, url: res.url, emails, formulaire: /(^https?:\\/\\/(careers?|carrieres?|recrutement|jobs?|emploi)\\.|\\/(careers?|carrieres?|recrutement|jobs|emploi|nous-rejoindre|rejoignez-nous|rejoindre)([\\/.?#-]|$))/i.test(String(res.url || '')) }; }); return [...base, ...extraits]; })() }}"
             }
           ]
         },
+        "mode": "manual",
         "options": {}
       }
     }
@@ -576,7 +1057,7 @@
       "main": [
         [
           {
-            "node": "Recherche contact",
+            "node": "Une entreprise à la fois",
             "type": "main",
             "index": 0
           }
@@ -609,29 +1090,7 @@
       "main": [
         [
           {
-            "node": "Vérifier et choisir",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Vérifier et choisir": {
-      "main": [
-        [
-          {
-            "node": "Statut du contact",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Statut du contact": {
-      "main": [
-        [
-          {
-            "node": "Une entreprise à la fois",
+            "node": "Résultat de la recherche",
             "type": "main",
             "index": 0
           }
@@ -660,9 +1119,166 @@
         ]
       ]
     },
+    "Résultat de la recherche": {
+      "main": [
+        [
+          {
+            "node": "Site officiel connu ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Site officiel connu ?": {
+      "main": [
+        [
+          {
+            "node": "Site retenu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Chercher le site officiel",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Site retenu": {
+      "main": [
+        [
+          {
+            "node": "Page d'accueil",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher le site officiel": {
+      "main": [
+        [
+          {
+            "node": "Site trouvé",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Site trouvé": {
+      "main": [
+        [
+          {
+            "node": "Site trouvé ?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Site trouvé ?": {
+      "main": [
+        [
+          {
+            "node": "Site retenu",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Choisir le contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Choisir le contact": {
+      "main": [
+        [
+          {
+            "node": "Statut du contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
     "Une entreprise à la fois": {
       "main": [
         [],
+        [
+          {
+            "node": "Recherche contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Page d'accueil": {
+      "main": [
+        [
+          {
+            "node": "Pages à visiter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pages à visiter": {
+      "main": [
+        [
+          {
+            "node": "Une page par ligne",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Une page par ligne": {
+      "main": [
+        [
+          {
+            "node": "Télécharger la page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Télécharger la page": {
+      "main": [
+        [
+          {
+            "node": "Analyser la page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyser la page": {
+      "main": [
+        [
+          {
+            "node": "Regrouper les pages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Statut du contact": {
+      "main": [
         [
           {
             "node": "Email trouvé ?",
@@ -676,12 +1292,7 @@
       "main": [
         [
           {
-            "node": "Adresse pas encore prise",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Adresse déjà prise",
+            "node": "Adresse déjà prise ailleurs ?",
             "type": "main",
             "index": 0
           }
@@ -695,29 +1306,18 @@
         ]
       ]
     },
-    "Adresse pas encore prise": {
+    "Adresse déjà prise ailleurs ?": {
       "main": [
         [
           {
-            "node": "Enregistrer le contact",
+            "node": "Statut final du contact",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Adresse déjà prise": {
-      "main": [
-        [
-          {
-            "node": "Marquer comme doublon",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Marquer comme doublon": {
+    "Statut final du contact": {
       "main": [
         [
           {
@@ -733,6 +1333,39 @@
         [
           {
             "node": "Une entreprise à la fois",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Regrouper les pages": {
+      "main": [
+        [
+          {
+            "node": "Chercher sur le site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chercher sur le site": {
+      "main": [
+        [
+          {
+            "node": "Ajouter les résultats du site",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ajouter les résultats du site": {
+      "main": [
+        [
+          {
+            "node": "Choisir le contact",
             "type": "main",
             "index": 0
           }

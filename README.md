@@ -20,7 +20,7 @@ flowchart LR
     R[(lba_branches<br/>CV + consignes<br/>par spécialité)] --> D
     T --> D[04 · Rédaction<br/>Claude Haiku]
     D --> RL[Relecture<br/>DeepSeek]
-    T --> K[03 · Recherche du contact<br/>Tavily + DeepSeek]
+    T --> K[03 · Recherche du contact<br/>Tavily + DeepSeek<br/>+ exploration du site]
     K --> T
     RL --> T
     T --> V{Validation<br/>manuelle}
@@ -39,7 +39,7 @@ Le suivi repose sur deux colonnes : `contact_statut` (`email` / `formulaire` / `
 | `workflows/00_configuration_branches_it.json` | Point d'édition des branches : pour chaque spécialité (développement, data/IA, cybersécurité, systèmes et réseaux), le CV à joindre, la cible d'alternance, les consignes de rédaction et un interrupteur `actif`. Écrit dans la table `lba_branches`. | Opérationnel |
 | `workflows/01_collecte_entreprises_lba.json` | Interroge l'API LBA pour chaque code ROME suivi, garde les entreprises « candidature spontanée » (sans offre publiée), dédoublonne sur le SIRET et insère uniquement les nouvelles. | Opérationnel |
 | `workflows/02_classification_it.json` | Pour les entreprises informatiques : recherche web (Tavily, annuaires exclus), puis décision par **Jev** (TypeSafe, via OpenRouter) : spécialité (développement, réseau/support, cybersécurité, data, ERP/conseil, ESN généraliste, non IT) avec un score de confiance, et vérification que les résultats web concernent bien la bonne entreprise. | Opérationnel |
-| `workflows/03_recherche_contact_it.json` | Recherche web (Tavily, contenu brut des pages), puis extraction par **DeepSeek** du site officiel, de l'email de recrutement ou à défaut de contact, et du formulaire. Un email n'est retenu que s'il apparaît tel quel dans les pages : pas d'adresse devinée. | Construit, non testé |
+| `workflows/03_recherche_contact_it.json` | Recherche web (Tavily, contenu brut des pages) et extraction par **DeepSeek**, puis **exploration directe du site officiel** : page d'accueil, liens « contact », « mentions légales », « recrutement », etc. Les emails sont repérés en clair et sous leurs formes masquées (protection Cloudflare, `[at]`, entités HTML), les formulaires de contact sont détectés. Choix de l'adresse : recrutement@ puis contact@ du domaine de l'entreprise, jamais l'hébergeur, l'agence web, le DPO ou un no-reply. Aucune adresse n'est devinée. | Opérationnel, testé sur 4 entreprises |
 | `workflows/04_redaction_candidatures_it.json` | Pour chaque entreprise joignable, classée avec une confiance ≥ 0,7, dont la spécialité a une branche active : récupère le CV de la branche (Google Drive), rédige le message avec **Claude Haiku 5.5**, le fait relire par une seconde IA d'un autre éditeur (**DeepSeek V4.1 Flash**), qui renvoie un verdict (`ok` / `corrige` / `rejete`) et les problèmes relevés, puis enregistre le tout avec un objet d'email. | Opérationnel, en phase de calibration |
 | `workflows/05_envoi_candidatures_gmail.json` | Envoie une à une, depuis Gmail, les candidatures validées à la main, avec en pièce jointe le CV qui a servi à rédiger le message, en texte brut ; 20 créneaux par jour en semaine ; marque la ligne `envoyee` avec la date. | Construit, inactif |
 

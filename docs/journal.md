@@ -93,8 +93,36 @@ Une même entreprise remonte souvent sous plusieurs établissements (un SIRET pa
 - à la recherche du contact, les entreprises sont enregistrées une à une ; si l'adresse trouvée est déjà attribuée à une autre ligne (filiale d'un même groupe, SIREN différent), la ligne passe en `doublon` et n'est jamais rédigée.
 Les lignes en double sont marquées plutôt que supprimées : supprimées, elles reviendraient à la collecte suivante.
 
+### Recherche du contact : explorer le site lui-même
+Premier test réel de la recherche du contact : 0 adresse sur 2 entreprises. Sur la première, l'adresse figurait pourtant sur son site, mais Tavily n'en renvoyait qu'un extrait tronqué (`bonjour@`). La recherche web seule ne suffit pas : il faut aller lire le site.
+
+- Le site officiel est pris dans la réponse de l'IA, sinon dans les résultats web (domaine qui contient le nom de l'entreprise), sinon par une seconde recherche dédiée.
+- Le workflow télécharge directement la page d'accueil, repère les liens utiles (contact, mentions légales, recrutement, équipe…) et visite une dizaine de pages au plus. Les mentions légales sont une bonne source : la loi impose d'y faire figurer un moyen de contact.
+- Les emails sont repérés en clair, dans les liens `mailto:` et sous leurs formes masquées (protection Cloudflare, `[at]`, `&#64;`). Les formulaires de contact sont détectés.
+- Choix de l'adresse par ordre de préférence : recrutement@ ou rh@ du domaine de l'entreprise, puis contact@ ou bonjour@, puis une autre adresse du domaine, puis une messagerie gratuite affichée sur le site (fréquent dans les petites structures). Jamais l'hébergeur, l'agence qui a fait le site, le DPO ou un no-reply. Toujours aucune adresse devinée.
+- Piège rencontré : l'objet `URL` de JavaScript n'existe pas dans les expressions n8n. Le domaine du site n'était jamais reconnu, et la bonne adresse, pourtant trouvée, était écartée. Les URL sont maintenant découpées par expressions régulières.
+- Résultat sur le même échantillon : l'adresse et le formulaire de la première entreprise sont trouvés sur son site, une deuxième entreprise est joignable par email. Celle qui n'a pas de site reste sans contact.
+
+### Recherche du contact : premier passage complet
+Sur les 28 entreprises IT retenues, le premier passage donnait 15 emails, 3 formulaires et 10 sans contact. En relisant les adresses une par une, plusieurs n'étaient pas envoyables : une messagerie gratuite sans lien avec une entreprise de 50 salariés, l'adresse d'une autre société, des annuaires pris pour le site officiel, un site sans rapport retenu parce que son nom commençait comme celui de l'entreprise.
+
+- Le site officiel n'est accepté que si son domaine reprend le nom de l'entreprise, y compris quand c'est l'IA qui le propose. Un mot du nom ne compte qu'en début ou en fin de domaine ; une partie du nom doit en couvrir au moins 60 %. Les annuaires sont exclus.
+- Les sous-domaines et autres extensions d'un même nom comptent comme le même domaine (`fr.exemple.com` pour `france.exemple.com`, `.com` pour `.fr`). Une adresse RH restait sinon ignorée.
+- Messagerie gratuite seulement si elle est affichée sur le site d'une petite structure (moins de 10 salariés). Adresses de service écartées : DPO, support, presse, accessibilité, facturation, achats.
+- Un formulaire passe avant l'adresse d'une autre société du groupe ; les formulaires des pages légales (protection des données, cookies) sont ignorés.
+- Nouvelle étape : une recherche Tavily limitée au domaine officiel. Elle rattrape les sites dont le contenu est généré en JavaScript et repère les portails carrières (enregistrés comme formulaires, à remplir à la main).
+- Résultat : 15 emails, 7 formulaires ou portails, 6 sans contact. Les 6 restants n'ont pas de site identifiable ou n'affichent qu'une adresse de DPO.
+
+### Rédaction : formation selon le profil recherché, POEI
+Premier lot de 15 lettres, une par entreprise joignable par email.
+
+- Développement : la lettre propose le bachelor Concepteur Développeur d'Applications ou le titre professionnel Développeur Web et Web Mobile (tous deux en un an), selon ce que l'entreprise est le plus susceptible de recruter. Agence web ou e-commerce : profil web / front. Éditeur de logiciel ou applications métier : profil applications / back. Activité mixte : les deux, au choix de l'entreprise.
+- Systèmes et réseaux : administration pour l'infogérance et les réseaux, support et maintenance informatique pour le dépannage.
+- Toutes les lettres mentionnent la POEI (préparation opérationnelle à l'emploi individuelle) : une formation intensive financée par France Travail avant l'alternance, présentée comme une piste à discuter.
+- Consignes resserrées après relecture : 250 mots au plus, pas de rapprochement forcé entre sa pratique et le métier de l'entreprise, pas de formule d'annonce (« je le dis simplement »), durée seulement là où elle est connue.
+- Piège rencontré : le modèle de rédaction rendait parfois un texte vide ou coupé (« B », « J'appor »), et la relecture échouait sur 9 lettres sur 15 avec une réponse vide. Les deux modèles réfléchissent avant de répondre, et cette réflexion épuisait la limite de jetons. Limites relevées (16 000 pour la rédaction, 32 000 pour la relecture).
+
 ### Reste à faire
-- Tester la recherche du contact sur un petit échantillon et mesurer la part d'entreprises joignables par email.
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.
 - Décider quoi envoyer aux ESN généralistes et aux intégrateurs ERP/conseil (pas encore de branche).
