@@ -113,6 +113,15 @@ Sur les 28 entreprises IT retenues, le premier passage donnait 15 emails, 3 form
 - Nouvelle étape : une recherche Tavily limitée au domaine officiel. Elle rattrape les sites dont le contenu est généré en JavaScript et repère les portails carrières (enregistrés comme formulaires, à remplir à la main).
 - Résultat : 15 emails, 7 formulaires ou portails, 6 sans contact. Les 6 restants n'ont pas de site identifiable ou n'affichent qu'une adresse de DPO.
 
+### Rédaction : formation selon le profil recherché, POEI
+Premier lot de 15 lettres, une par entreprise joignable par email.
+
+- Développement : la lettre propose le bachelor Concepteur Développeur d'Applications ou le titre professionnel Développeur Web et Web Mobile (tous deux en un an), selon ce que l'entreprise est le plus susceptible de recruter. Agence web ou e-commerce : profil web / front. Éditeur de logiciel ou applications métier : profil applications / back. Activité mixte : les deux, au choix de l'entreprise.
+- Systèmes et réseaux : administration pour l'infogérance et les réseaux, support et maintenance informatique pour le dépannage.
+- Toutes les lettres mentionnent la POEI (préparation opérationnelle à l'emploi individuelle) : une formation intensive financée par France Travail avant l'alternance, présentée comme une piste à discuter.
+- Consignes resserrées après relecture : 250 mots au plus, pas de rapprochement forcé entre sa pratique et le métier de l'entreprise, pas de formule d'annonce (« je le dis simplement »), durée seulement là où elle est connue.
+- Piège rencontré : le modèle de rédaction rendait parfois un texte vide ou coupé (« B », « J'appor »), et la relecture échouait sur 9 lettres sur 15 avec une réponse vide. Les deux modèles réfléchissent avant de répondre, et cette réflexion épuisait la limite de jetons. Limites relevées (16 000 pour la rédaction, 32 000 pour la relecture).
+
 ### Reste à faire
 - Vérifier à la main un échantillon de classifications pour mesurer l'accord avec Jev.
 - Branche `jobs` (offres déposées sur LBA) dans la collecte.

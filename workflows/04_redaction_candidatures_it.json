@@ -32,32 +32,49 @@
         "filters": {
           "conditions": [
             {
-              "keyName": "statut",
               "condition": "eq",
+              "keyName": "statut",
               "keyValue": "a_traiter"
             },
             {
-              "keyName": "specialite_confiance",
               "condition": "gte",
+              "keyName": "specialite_confiance",
               "keyValue": "0.7"
             },
             {
-              "keyName": "contact_statut",
-              "condition": "isNotEmpty"
+              "condition": "isNotEmpty",
+              "keyName": "contact_statut"
             },
             {
-              "keyName": "contact_statut",
               "condition": "neq",
+              "keyName": "contact_statut",
               "keyValue": "sans_contact"
             },
             {
-              "keyName": "contact_statut",
               "condition": "neq",
+              "keyName": "contact_statut",
               "keyValue": "doublon"
             }
           ]
         },
         "returnAll": true
+      }
+    },
+    {
+      "name": "Associer la branche",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        0
+      ],
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByFields",
+        "fieldsToMatchString": "specialite",
+        "joinMode": "keepMatches",
+        "outputDataFrom": "both",
+        "options": {}
       }
     },
     {
@@ -181,23 +198,6 @@
       }
     },
     {
-      "name": "Associer la branche",
-      "type": "n8n-nodes-base.merge",
-      "typeVersion": 3.2,
-      "position": [
-        1120,
-        0
-      ],
-      "parameters": {
-        "mode": "combine",
-        "combineBy": "combineByFields",
-        "fieldsToMatchString": "specialite",
-        "joinMode": "keepMatches",
-        "outputDataFrom": "both",
-        "options": {}
-      }
-    },
-    {
       "name": "Limite du lot",
       "type": "n8n-nodes-base.limit",
       "typeVersion": 1,
@@ -217,10 +217,6 @@
         1568,
         0
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 5000,
-      "onError": "continueRegularOutput",
       "parameters": {
         "promptType": "define",
         "hasOutputParser": false,
@@ -229,7 +225,7 @@
           "messageValues": [
             {
               "type": "SystemMessagePromptTemplate",
-              "message": "Tu rédiges, au nom de Gauthier Faisandaz, le message d'une candidature spontanée en alternance envoyée par email à une entreprise d'informatique (le CV adapté au domaine est joint en pièce jointe). L'entreprise a été repérée sur La bonne alternance, la plateforme publique de l'alternance, comme susceptible de recruter des alternants. Le domaine visé, la cible d'alternance et les consignes propres à ce domaine sont fournis dans le message utilisateur, rubrique BRANCHE : respecte-les en priorité.\n\nPARTI PRIS DU MESSAGE\nLe message assume ouvertement qu'il est envoyé par une automatisation que Gauthier a conçue lui-même de bout en bout : repérage des entreprises via l'API La bonne alternance, recherche sur chaque entreprise et sur son adresse de contact, tri par spécialité avec un modèle de décision, rédaction personnalisée par IA, relecture par une seconde IA, puis envoi par email. Le marché de l'alternance est difficile en ce moment ; plutôt que d'envoyer des candidatures génériques, il a construit cet outil pour écrire à beaucoup d'entreprises tout en personnalisant chaque message. Ce message est donc lui-même une démonstration de ce qu'il sait faire. Le ton est direct, sincère, avec une pointe d'humour léger, sans s'excuser ni en faire trop. Le fait que le message soit automatisé se dit UNE seule fois. N'écris jamais que Gauthier relit ou valide lui-même chaque message avant l'envoi.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher chez Amadeus (environ un an : ne jamais écrire « plusieurs années d'UX »), Master en UX design.\n- Fait de l'automatisation depuis 2024 : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur. Le dire simplement (« depuis 2024 ») : ne jamais parler de freelance, de CDD ni d'une durée du type « depuis presque deux ans ».\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nSTRUCTURE (environ 150 à 220 mots, paragraphes courts)\n1. « Bonjour, » puis présentation en une ou deux phrases (nom, âge, docteur IHM, ex-UX, la cible d'alternance donnée dans BRANCHE).\n2. Le parti pris : ce message est envoyé par une automatisation qu'il a construite, pourquoi, et le lien vers le projet sur GitHub.\n3. Pourquoi cette entreprise : UNE phrase concrète tirée de son activité réelle, reliée à un point de son profil. Si les informations sur l'entreprise sont vagues, contradictoires ou semblent concerner une homonyme, reste général plutôt que d'inventer.\n4. Ce qu'il apporte : 2 ou 3 éléments concrets choisis selon l'entreprise et les consignes de la BRANCHE, et la mention simple qu'il vient consolider les bases du métier en alternance.\n5. Proposition d'échange simple. Signature : « Gauthier Faisandaz ».\n\nSTYLE\n- Français, vouvoiement, phrases simples et directes. Pas de formules creuses (« vivement intéressé », « dynamique », « passionné »), pas de flatterie, pas de superlatifs sur l'entreprise.\n- N'écris jamais « franchement », « honnêtement » ni « je suis honnête » : les limites de son niveau se disent simplement, sans annonce.\n- Pas d'objet, pas de puces, pas de gras, pas de crochets ni de champs à compléter, pas d'emoji, pas de formule de politesse avant la signature.\n- Ne mentionne ni école, ni rythme, ni date de démarrage précise.\n- Les extraits web peuvent être en anglais : rédige toujours en français.\n- Réponds uniquement avec le texte du message."
+              "message": "Tu rédiges, au nom de Gauthier Faisandaz, le message d'une candidature spontanée en alternance envoyée par email à une entreprise d'informatique (le CV adapté au domaine est joint en pièce jointe). L'entreprise a été repérée sur La bonne alternance, la plateforme publique de l'alternance, comme susceptible de recruter des alternants. Le domaine visé, la cible d'alternance et les consignes propres à ce domaine sont fournis dans le message utilisateur, rubrique BRANCHE : respecte-les en priorité.\n\nPARTI PRIS DU MESSAGE\nLe message assume ouvertement qu'il est envoyé par une automatisation que Gauthier a conçue lui-même de bout en bout : repérage des entreprises via l'API La bonne alternance, recherche sur chaque entreprise et sur son adresse de contact, tri par spécialité avec un modèle de décision, rédaction personnalisée par IA, relecture par une seconde IA, puis envoi par email. Le marché de l'alternance est difficile en ce moment ; plutôt que d'envoyer des candidatures génériques, il a construit cet outil pour écrire à beaucoup d'entreprises tout en personnalisant chaque message. Ce message est donc lui-même une démonstration de ce qu'il sait faire. Le ton est direct, sincère, avec une pointe d'humour léger, sans s'excuser ni en faire trop. Le fait que le message soit automatisé se dit UNE seule fois. N'écris jamais que Gauthier relit ou valide lui-même chaque message avant l'envoi.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher chez Amadeus (environ un an : ne jamais écrire « plusieurs années d'UX »), Master en UX design.\n- Fait de l'automatisation depuis 2024 : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur. Le dire simplement (« depuis 2024 ») : ne jamais parler de freelance, de CDD ni d'une durée du type « depuis presque deux ans ».\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nSTRUCTURE (200 à 230 mots, 250 au grand maximum, paragraphes courts)\n1. « Bonjour, » puis présentation en une ou deux phrases (nom, âge, docteur IHM, ex-UX, la cible d'alternance donnée dans BRANCHE, avec la formation et sa durée quand la BRANCHE les précise).\n2. Le parti pris : ce message est envoyé par une automatisation qu'il a construite, pourquoi, et le lien vers le projet sur GitHub.\n3. Pourquoi cette entreprise : UNE phrase concrète tirée de son activité réelle, reliée à un point de son profil. Ne prétends jamais que ce qu'il fait correspond au métier de l'entreprise (pas de « c'est exactement ce que je fais », « correspond à ce que je pratique ») : il vient l'apprendre. Si les informations sur l'entreprise sont vagues, contradictoires ou semblent concerner une homonyme, reste général plutôt que d'inventer.\n4. Ce qu'il apporte : 2 ou 3 éléments concrets choisis selon l'entreprise et les consignes de la BRANCHE, et la mention simple qu'il vient consolider les bases du métier en alternance.\n5. La POEI, en une phrase ou deux, suivie si besoin de la précision sur le contrat de professionnalisation : avant l'alternance, il est possible de passer par une POEI (préparation opérationnelle à l'emploi individuelle), une formation intensive accélérée financée par France Travail, pour qu'il monte en compétence encore plus vite avant de commencer. Présente-la comme une possibilité à discuter avec l'entreprise, pas comme une démarche déjà engagée. N'écris jamais qu'elle est gratuite.\n6. Proposition d'échange simple. Signature : « Gauthier Faisandaz ».\n\nSTYLE\n- Français, vouvoiement, phrases simples et directes. Pas de formules creuses (« vivement intéressé », « dynamique », « passionné »), pas de flatterie, pas de superlatifs sur l'entreprise.\n- N'écris jamais « franchement », « honnêtement », « je suis honnête », « je le dis simplement » ni « je ne le prétends pas » : les limites de son niveau se disent sans formule d'annonce.\n- Pas d'objet, pas de puces, pas de gras, pas de crochets ni de champs à compléter, pas d'emoji, pas de formule de politesse avant la signature.\n- Ne mentionne ni école, ni rythme, ni date de démarrage précise. Les seules formations citées sont celles de la BRANCHE et la POEI. La durée « d'un an » n'apparaît que si la cible de la BRANCHE la donne ; sinon, aucune durée.\n- Les extraits web peuvent être en anglais : rédige toujours en français.\n- Réponds uniquement avec le texte du message."
             }
           ]
         },
@@ -237,7 +233,11 @@
           "batchSize": 3,
           "delayBetweenBatches": 0
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
+      "onError": "continueRegularOutput"
     },
     {
       "name": "Claude Haiku 5.5 (OpenRouter)",
@@ -250,11 +250,8 @@
       "parameters": {
         "model": "anthropic/claude-haiku-5.5",
         "options": {
-          "temperature": 0.6,
-          "maxTokens": 4096,
-          "providerRouting": {
-            "sort": "price"
-          }
+          "maxTokens": 16000,
+          "temperature": 0.6
         }
       },
       "credentials": {
@@ -305,10 +302,6 @@
         2016,
         0
       ],
-      "retryOnFail": true,
-      "maxTries": 3,
-      "waitBetweenTries": 3000,
-      "onError": "continueRegularOutput",
       "parameters": {
         "promptType": "define",
         "hasOutputParser": true,
@@ -317,7 +310,7 @@
           "messageValues": [
             {
               "type": "SystemMessagePromptTemplate",
-              "message": "Tu es le relecteur final d'un message de candidature spontanée en alternance, rédigé par une autre IA au nom de Gauthier Faisandaz et destiné à une entreprise d'informatique. Ce message pourra être envoyé sans relecture humaine : ton rôle est d'éliminer tout ce qui pourrait le décrédibiliser, en touchant le moins possible au texte. Le domaine visé et ses consignes sont fournis dans la rubrique BRANCHE du message utilisateur.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher chez Amadeus (environ un an : ne jamais écrire « plusieurs années d'UX »), Master en UX design.\n- Fait de l'automatisation depuis 2024 : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur. Le dire simplement (« depuis 2024 ») : ne jamais parler de freelance, de CDD ni d'une durée du type « depuis presque deux ans ».\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nCE QUE TU VÉRIFIES\n1. Surévaluation ou invention sur Gauthier : durée d'expérience gonflée (par exemple « plusieurs années d'UX research »), compétence présentée comme maîtrisée alors qu'il ne l'a que pratiquée ou approchée, listes de langages ou d'outils, SQL/PostgreSQL/Supabase/Jira cités comme compétences, compétence du domaine visé revendiquée alors que les consignes de la BRANCHE disent qu'il la découvre, expérience absente du profil et du CV, certification présentée comme obtenue.\n2. Parcours : toute mention de freelance, de CDD ou d'une durée (« depuis presque deux ans », « depuis deux ans ») est remplacée par « depuis 2024 » ou supprimée.\n3. Faits sur l'entreprise non appuyés par les informations fournies.\n4. Cohérence avec la BRANCHE : la cible d'alternance annoncée correspond bien à celle de la BRANCHE.\n5. Répétitions : le caractère automatisé du message dit plus d'une fois, idées ou formules redites, phrases creuses, flatterie. Affirmation que Gauthier relit ou valide lui-même chaque message (à remplacer par une relecture par une seconde IA, ou à supprimer).\n6. Mots à retirer : « franchement », « honnêtement », « je suis honnête » (garder l'idée, supprimer l'annonce).\n7. Artefacts : crochets ou champs à compléter, markdown (gras, puces, titres), emoji, passages en anglais, double salutation, formule de politesse avant la signature, signature absente ou différente de « Gauthier Faisandaz », lien GitHub du projet absent ou modifié, objet de mail, mention d'une école, d'un rythme ou d'une date de démarrage.\n8. Cohérence générale : le message se lit d'une traite, le ton reste direct et sincère.\n\nCE QUE TU RENDS\n- verdict « ok » : aucun problème, message_final = le message tel quel.\n- verdict « corrige » : problèmes corrigés par des retouches minimales (supprimer, raccourcir, reformuler la phrase fautive), sans réécrire le style ni ajouter de contenu. message_final = message corrigé complet. Chaque problème listé doit être effectivement corrigé dans message_final.\n- verdict « rejete » : problème de fond non corrigeable par retouche (entreprise visiblement mal identifiée, message incohérent ou hors sujet). message_final = chaîne vide.\n- problemes : liste courte, en français, de chaque problème relevé (vide si ok)."
+              "message": "Tu es le relecteur final d'un message de candidature spontanée en alternance, rédigé par une autre IA au nom de Gauthier Faisandaz et destiné à une entreprise d'informatique. Ce message pourra être envoyé sans relecture humaine : ton rôle est d'éliminer tout ce qui pourrait le décrédibiliser, en touchant le moins possible au texte. Le domaine visé et ses consignes sont fournis dans la rubrique BRANCHE du message utilisateur.\n\nPROFIL DE GAUTHIER (faits autorisés)\n- 37 ans, docteur en informatique spécialité interaction humain-machine (2024), ancien UX researcher chez Amadeus (environ un an : ne jamais écrire « plusieurs années d'UX »), Master en UX design.\n- Fait de l'automatisation depuis 2024 : workflows n8n, intégration d'API et de LLM, pipelines de données. C'est là qu'il est le plus solide, avec la recherche utilisateur et la conception centrée utilisateur. Le dire simplement (« depuis 2024 ») : ne jamais parler de freelance, de CDD ni d'une durée du type « depuis presque deux ans ».\n- Son métier depuis toujours : comprendre comment les personnes utilisent réellement un outil, y compris quand elles ne sont pas techniques, et traduire ça en fonctionnalités.\n- Touche-à-tout : adepte d'Arduino et d'électronique ; il a conçu un gant de données instrumenté pendant sa thèse.\n- Prépare la certification Claude Certified Architect d'Anthropic (pas encore obtenue : ne jamais la présenter comme acquise).\n- Projet de cette automatisation : https://github.com/Gauthier-Faisandaz/LBA-automatisation-candidatures-spontan-es\n- Autres projets : https://github.com/Gauthier-Faisandaz\n\nNIVEAU TECHNIQUE RÉEL (à respecter strictement)\n- Il est prototypeur, pas développeur. Il n'est pas encore professionnel du domaine visé.\n- Python : utilisé pour prototyper pendant sa thèse. Pas expert. C'est le langage qui l'intéresse le plus.\n- HTML, CSS, JavaScript : en cours d'apprentissage, en autodidacte.\n- SQL, PostgreSQL, Supabase : utilisés surtout via leurs interfaces graphiques ; il écrit un peu de SQL avec l'aide d'un assistant IA, il n'est pas autonome en SQL.\n- Certaines compétences du CV ne sont que des expositions (par exemple Jira : il a travaillé dans une équipe qui l'utilisait, sans l'utiliser lui-même). Une compétence citée dans le CV n'est jamais une compétence maîtrisée.\n- Par défaut, n'énumère aucun langage ni outil. Exception : si les informations sur l'entreprise mentionnent explicitement une technologie qu'il a déjà pratiquée, il peut la citer avec son niveau réel (déjà pratiquée, pas expert, l'alternance servira à consolider). Ne cite jamais SQL, PostgreSQL, Supabase ou Jira comme compétences.\n\nCE QUE TU VÉRIFIES\n1. Surévaluation ou invention sur Gauthier : rapprochement abusif entre sa pratique et le cœur de métier de l'entreprise (« c'est exactement ce que je fais », « correspond à ce que je pratique »), durée d'expérience gonflée (par exemple « plusieurs années d'UX research »), compétence présentée comme maîtrisée alors qu'il ne l'a que pratiquée ou approchée, listes de langages ou d'outils, SQL/PostgreSQL/Supabase/Jira cités comme compétences, compétence du domaine visé revendiquée alors que les consignes de la BRANCHE disent qu'il la découvre, expérience absente du profil et du CV, certification présentée comme obtenue.\n2. Parcours : toute mention de freelance, de CDD ou d'une durée (« depuis presque deux ans », « depuis deux ans ») est remplacée par « depuis 2024 » ou supprimée.\n3. Faits sur l'entreprise non appuyés par les informations fournies.\n4. Cohérence avec la BRANCHE : la cible d'alternance annoncée correspond bien à celle de la BRANCHE ; les formations citées (et leur durée) sont celles de la BRANCHE, sans en inventer d'autre ; pour le développement, la formation mise en avant (bachelor CDA ou titre pro Développeur Web et Web Mobile) est cohérente avec l'activité de l'entreprise.\n4 bis. POEI : elle est mentionnée une seule fois, comme une possibilité avant l'alternance, financée par France Travail ; jamais « gratuite », jamais présentée comme déjà obtenue ou engagée. Si elle manque, ajoute une phrase courte à ce sujet avant la proposition d'échange : c'est le seul ajout de contenu autorisé.\n5. Répétitions : le caractère automatisé du message dit plus d'une fois, idées ou formules redites, phrases creuses, flatterie. Affirmation que Gauthier relit ou valide lui-même chaque message (à remplacer par une relecture par une seconde IA, ou à supprimer).\n6. Mots à retirer : « franchement », « honnêtement », « je suis honnête », « je le dis simplement », « je ne le prétends pas » (garder l'idée, supprimer l'annonce).\n7. Artefacts : crochets ou champs à compléter, markdown (gras, puces, titres), emoji, passages en anglais, double salutation, formule de politesse avant la signature, signature absente ou différente de « Gauthier Faisandaz », lien GitHub du projet absent ou modifié, objet de mail, mention d'une école, d'un rythme ou d'une date de démarrage.\n8. Cohérence générale : le message se lit d'une traite, le ton reste direct et sincère. Durée : « d'un an » seulement si la cible de la BRANCHE la donne. Longueur : au-delà de 250 mots, raccourcis en supprimant les phrases les moins utiles.\n\nCE QUE TU RENDS\n- verdict « ok » : aucun problème, message_final = le message tel quel.\n- verdict « corrige » : problèmes corrigés par des retouches minimales (supprimer, raccourcir, reformuler la phrase fautive), sans réécrire le style ni ajouter de contenu. message_final = message corrigé complet. Chaque problème listé doit être effectivement corrigé dans message_final.\n- verdict « rejete » : problème de fond non corrigeable par retouche (entreprise visiblement mal identifiée, message incohérent ou hors sujet). message_final = chaîne vide.\n- problemes : liste courte, en français, de chaque problème relevé (vide si ok)."
             }
           ]
         },
@@ -325,7 +318,11 @@
           "batchSize": 3,
           "delayBetweenBatches": 0
         }
-      }
+      },
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 3000,
+      "onError": "continueRegularOutput"
     },
     {
       "name": "DeepSeek V4.1 Flash (OpenRouter)",
@@ -339,7 +336,7 @@
         "model": "deepseek/deepseek-v4.1-flash",
         "options": {
           "temperature": 0.1,
-          "maxTokens": 12000
+          "maxTokens": 32000
         }
       },
       "credentials": {
@@ -414,7 +411,7 @@
               "id": "p7",
               "name": "objet_email",
               "type": "string",
-              "value": "=Candidature spontanée – alternance {{ ({developpement: \"développement d'applications\", data_ia: 'data / IA', cybersecurite: 'cybersécurité', reseau_infra_support: 'systèmes et réseaux'})[$('Limite du lot').item.json.specialite] || 'informatique' }} 2026-2027 – Gauthier Faisandaz"
+              "value": "=Candidature spontanée – alternance {{ ({developpement: 'développement', data_ia: 'data / IA', cybersecurite: 'cybersécurité', reseau_infra_support: 'systèmes et réseaux'})[$('Limite du lot').item.json.specialite] || 'informatique' }} 2026-2027 – Gauthier Faisandaz"
             },
             {
               "id": "p8",
@@ -468,67 +465,67 @@
           },
           "schema": [
             {
-              "id": "message_initial",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "message_initial",
+              "id": "message_initial",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "message_brouillon",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "message_brouillon",
+              "id": "message_brouillon",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "relecture_verdict",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "relecture_verdict",
+              "id": "relecture_verdict",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "relecture_notes",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "relecture_notes",
+              "id": "relecture_notes",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "statut",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "statut",
+              "id": "statut",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "objet_email",
+              "canBeUsedToMatch": true,
+              "defaultMatch": false,
+              "display": true,
               "displayName": "objet_email",
+              "id": "objet_email",
               "required": false,
-              "defaultMatch": false,
-              "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "type": "string"
             },
             {
-              "id": "cv_drive_id",
-              "displayName": "cv_drive_id",
-              "required": false,
+              "canBeUsedToMatch": true,
               "defaultMatch": false,
               "display": true,
-              "type": "string",
-              "canBeUsedToMatch": true
+              "displayName": "cv_drive_id",
+              "id": "cv_drive_id",
+              "required": false,
+              "type": "string"
             }
           ]
         },
@@ -558,6 +555,17 @@
         [
           {
             "node": "Associer la branche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Associer la branche": {
+      "main": [
+        [
+          {
+            "node": "Limite du lot",
             "type": "main",
             "index": 0
           }
@@ -608,22 +616,22 @@
         ]
       ]
     },
-    "Associer la branche": {
+    "Limite du lot": {
       "main": [
         [
           {
-            "node": "Limite du lot",
+            "node": "Rédaction du message",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Limite du lot": {
+    "Rédaction du message": {
       "main": [
         [
           {
-            "node": "Rédaction du message",
+            "node": "Message généré ?",
             "type": "main",
             "index": 0
           }
@@ -641,22 +649,22 @@
         ]
       ]
     },
-    "Rédaction du message": {
+    "Message généré ?": {
       "main": [
         [
           {
-            "node": "Message généré ?",
+            "node": "Relecture (2e IA)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Message généré ?": {
+    "Relecture (2e IA)": {
       "main": [
         [
           {
-            "node": "Relecture (2e IA)",
+            "node": "Préparer l'enregistrement",
             "type": "main",
             "index": 0
           }
@@ -680,17 +688,6 @@
           {
             "node": "Relecture (2e IA)",
             "type": "ai_outputParser",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Relecture (2e IA)": {
-      "main": [
-        [
-          {
-            "node": "Préparer l'enregistrement",
-            "type": "main",
             "index": 0
           }
         ]
